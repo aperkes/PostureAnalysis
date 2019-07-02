@@ -124,25 +124,30 @@ class Sequence2:
         self.wings = wings
         #self.all_features = np.array([heads,tails,bodies,wings])
         self.all_features = np.array([heads,tails,bodies])#NOTE:Temporary
-        self.feature_list = ['heads','tails','bodies']
+        self.feature_list = ['head angle','tail angle','body angle']
         return heads, tails, bodies, wings
 
     def plot_me(self,show=True,save=False,smooth=False):
         fig, ax = plt.subplots()
         for f in range(len(self.all_features)):
-            sigma = 10
+            sigma = 2
             if smooth:
                 smoothed = g_filter(self.all_features[f],sigma)
                 ax.plot(smoothed,label=self.feature_list[f])
             else:
                 ax.plot(self.all_features[f],label=self.feature_list[f])
         ax.legend()
+        ax.set_xlabel('Time (ms)')
+        ax.set_ylabel('Angle (degrees)')
+        ax.set_ylim([-100,50])
         fig.set_size_inches(8,4)
         fig.tight_layout()
         if show:
             fig.show()
         if save:
             fig_file = self.f_name.split('.')[0] + '.jpg'
+            fig_file = 'test2.png'
+            print('Saving to:',fig_file)
             fig.savefig(fig_file,dpi=300)
         return fig,ax
 
