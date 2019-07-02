@@ -11,6 +11,8 @@ import numpy as np
 import pdb
 
 ## Only need these lines if you're running remotely...
+from scipy.ndimage.filters import gaussian_filter1d as g_filter
+
 import matplotlib
 matplotlib.use('Agg')
 
@@ -120,14 +122,20 @@ class Sequence2:
         self.tails = tails
         self.heads = heads
         self.wings = wings
-        self.all_features = np.array([heads,tails,bodies,wings])
-        self.feature_list = ['heads','tails','bodies','wings']
+        #self.all_features = np.array([heads,tails,bodies,wings])
+        self.all_features = np.array([heads,tails,bodies])#NOTE:Temporary
+        self.feature_list = ['heads','tails','bodies']
         return heads, tails, bodies, wings
 
-    def plot_me(self,show=True,save=False):
+    def plot_me(self,show=True,save=False,smooth=False):
         fig, ax = plt.subplots()
         for f in range(len(self.all_features)):
-            ax.plot(self.all_features[f],label=self.feature_list[f])
+            sigma = 10
+            if smooth:
+                smoothed = g_filter(self.all_features[f],sigma)
+                ax.plot(smoothed,label=self.feature_list[f])
+            else:
+                ax.plot(self.all_features[f],label=self.feature_list[f])
         ax.legend()
         fig.set_size_inches(8,4)
         fig.tight_layout()
@@ -147,7 +155,7 @@ class Sequence2:
 if __name__ == "__main__":
     f_name = sys.argv[1]
     my_seq = Sequence2(f_name)
-    my_seq.plot_me(show=False,save=True)
+    my_seq.plot_me(show=False,save=True,smooth=True)
 
 #XXX OLD CODE (still haven't set up the git for this...) 
 """
