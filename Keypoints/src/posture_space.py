@@ -201,14 +201,34 @@ if __name__ == '__main__':
     #postures_dir = os.path.expanduser(sys.argv[1])
     #postures_dir = os.path.abspath(postures_dir) + '/'
     postures_dir = '/home/ammon/Documents/Scripts/AnalyzePosture/Keypoints/detections/'
+    all_detections = sorted(os.listdir(postures_dir))
     print('getting all the poses...')
+    """
     all_poses = get_all_poses(postures_dir)
 ## This handles the edge case where some angle failed
     all_poses = clean_pose(all_poses)
+    #np.save('./all_poses.npy',all_poses)
+    """
+    all_poses = np.load('./all_poses.npy')
     print('running pca')
     pca = PCA()
     pca.fit(all_poses)
     print('projecting onto pca')
-    one_pose_path = postures_dir + os.listdir(postures_dir)[0] + '/detections_3d.csv'
-    one_pose = PoseTrajectory(one_pose_path)
-    pose_space = pca.transform(clean_pose(one_pose.all_angles))
+    choice = '1'
+    while choice != 'q':
+        try:
+            idx = int(choice.strip())
+        except:
+            print("That's no int! Try again:")
+            choice = input('Select an int less than ' + str(len(all_detections)) + ': ')
+            continue
+        one_pose_path = postures_dir + all_detections[idx] + '/detections_3d.csv'
+        one_pose = PoseTrajectory(one_pose_path)
+        pose_space = pca.transform(clean_pose(one_pose.all_angles))
+        fig,ax = plt.subplots()
+        ax.plot(pose_space[:,0],pose_space[:,1])
+        ax.set_xlim([-4,4])
+        ax.set_ylim([-4,4])
+        ax.set_title(one_pose_path.split('/')[-2])
+        fig.show()
+        choice = input('Select an int less than ' + str(len(all_detections)) + ': ')
