@@ -21,11 +21,13 @@ class Trajectory:
             self.data = seq.ys
             self.ts = seq.ts
             self.cost = 0
+            self.sum_cost = 0
             self.distance = 0
             self.hierarchy = index
             self.t_cost = 0
         else:
             self.data,self.cost, self.ts = dtw_align(seq1,seq2,path)
+            self.sum_cost = self.cost + seq1.cost + seq2.cost
             self.t_cost = calc_Tcost(seq1,seq2)
             self.hierarchy = [seq1.hierarchy,seq2.hierarchy]
 
@@ -56,14 +58,68 @@ def dtw_align(p1,p2,path=0,strat="cost"):
     if not path:
         path,distance = fastdtw(p1,pw)
 ## Other strategies are always random, or use the length vs med_length
-## Or you just take the average path...
-    if p1.cost > p2.cost:
-        "Use p1"
-    elif p2.cost > p1.cost:
-        "use p2"
+    for p in range(len(path)):
+        pair = path[p]
+        p3_data[p] = np.mean(p1[pair[0]],p2[pair[1]],0) ## NOTE: check that this is the right axis
+    p3_ts,cost = get_ts(p1,p2,path)
+# Should the alignment actually exist inside the object? 
+    return p3_data, p3_ts, cost
+
+## Most complicated function here, figures out new ts
+def get_ts(p1,p2,path,strat='cost'):
+    cost, counts, indices = dtw_cost(path)
+    if strat = 'cost':
+        primary = get_primary(p1,p2,strat='cost')
+        p_primary = (p1,p2)[primary]
+        p_secondary = (p1,p2)[not primary] ## a bit cheeky, but it works
     else:
-        "pick randomly"
-    return p_aligned, cost
+        pass
+    p_counts = counts[primary]
+    #s_counts = counts[not primary]
+    p_indices = indices[primary]
+    new_ts = np.empty(len(path))
+    t = 0
+    while t <= len(path):
+        p_index = path[t][primary]
+        point_t = p_primary.ts[p_index]
+        c_index = p_indices[p_indices == p_index]
+        t_count = p_counts[c_index]
+        if t_count == 1:
+            new_ts[t] = point_t
+        if t_count > 1:
+            point_t0 = p_primary.ts[p_index - 1]
+            point_t2 = p_primary.ts[p_index + 1]
+            t_start = point_t - abs(point_t - point_t0)/2
+            t_end = point_t + abs(point_t1 - point_t)/2
+            t_len = abs(t_end - t_start)
+            for t_i in range(t_count):
+                new_ts[t+t_i] = t_start + t_len / t_count
+        t += t_count
+    return new_ts, cost
+
+## This could be seen as a boolean question:
+# "Is p2 better than p1?"
+def get_primary(p1,p2,strat='cost'):
+## Or you just take the average path...
+    if strat = 'cost':
+        if p1.cost > p2.cost:
+            return 0
+            "Use p1"
+        elif p2.cost > p1.cost:
+            return 1
+            "use p2"
+        else:
+            strat = 'random'
+    elif strat = 'sum_cost':
+        if p1.sum_cost > p2.sum_cost:
+            return 0 
+        elif p1.sum_cost < p2.sum_cost:
+            return 1
+        else:
+            strat = 'random'
+    if strat == 'random':
+        return random.randint(0,1)
+# Just pick randomly
 
 ## This too...calculates cost of a path
 def dtw_cost(path):
@@ -71,7 +127,7 @@ def dtw_cost(path):
     indices, counts = np.unique(path_array,return_counts=True)
     cost_points = np.log(counts)
     cost = np.sum(cost_points)
-    return cost, cost_points, indices
+    return cost, counts, indices
     
 ## Initialize sparse array of distances
 distance_array = np.empty([len(seqs),len(seqs)])
