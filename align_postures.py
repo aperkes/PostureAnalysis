@@ -9,6 +9,8 @@ import pickle
 import random
 import pdb
 
+dimensions = True
+
 ## Handy container for the sequence and its metrics
 class Trajectory:
     def __init__(self,index,from_file = True, seq_file = 0, seq1 = 0, seq2 = 0, path = 0):
@@ -18,9 +20,15 @@ class Trajectory:
         if from_file:
 ## For now I don't need to store the seq
             self.seq_data = np.genfromtxt(seq_file)
-            self.data = self.seq_data[:,5]
+            self.ys = self.seq_data[:,5]
+            self.e2 = self.seq_data[:,3]
+            if dimensions:
+                self.data = self.seq_data[:,[5,3]]
+            else:
+                self.data = self.ys
             self.ts = self.seq_data[:,0]
-            self.vel = np.diff(self.data)
+            ## This works regardless on dimensions!
+            self.vel = np.diff(self.data,axis=0)
             self.vel_t = self.ts[:-1]
             self.cost = 0
             self.sum_cost = 0
@@ -31,7 +39,7 @@ class Trajectory:
             self.parents = [self.index,self.index]
         else:
             self.data,self.ts, self.cost,self.cost_ts = dtw_align(seq1,seq2,path)
-            self.vel = np.diff(self.data)
+            self.vel = np.diff(self.data,axis=0)
             self.vel_t = self.ts[:-1]
             self.sum_cost = self.cost + seq1.cost + seq2.cost
             self.t_cost = calc_Tcost(seq1,seq2)
@@ -45,7 +53,7 @@ class Trajectory:
             self.cost_ts = self.response_cost
 
     def define_window(self):
-        smooth_data = gaussian_filter(self.data,sigma=3)
+        #smooth_data = np.transpose(gaussian_filter1d(np.transpose(self.data),sigma=2))
         #baseline = np.mean(smooth_data[np.logical_and(self.ts>= -.2,self.ts <= 0.0)])
         try:
             t_baseline = min(self.ts[self.ts>= -2.0])
@@ -105,17 +113,22 @@ def parse_postures(posture_dir):
 def dtw_align(p1,p2,path=0,strat="cost"):
     if not path:
         if True:
+            pdb.set_trace()
             distance,path = fastdtw(p1.vel,p2.vel)
 
         else:
             distance,path = fastdtw(p1.data,p2.data)
 ## Other strategies are always random, or use the length vs med_length
-    p3_data = np.empty(len(path))
+    if len(np.shape(p1.data)) > 1:
+        dims = np.shape(p1.data)[1]
+        p3_data = np.empty([len(path),dims])
+    else:
+        p3_data = np.empty(len(path))
     for p in range(len(path)):
         pair = path[p]
 # For now this is 1d, so no axis needed, eventually I will probably need an axis, or something
         if strat=='cost':
-            p3_data[p] = np.mean([p1.data[pair[0]],p2.data[pair[1]]]) 
+            p3_data[p] = np.mean([p1.data[pair[0]],p2.data[pair[1]]],0) 
         elif strat == 'canon':
             p3_data[p] = p2.data[pair[1]]
     p3_ts,cost,cost_path = get_ts(p1,p2,path,strat)
@@ -236,7 +249,7 @@ if __name__ == "__main__":
 
 ## Initialize sparse array of distances
     #distance_key = list(range(len(seqs)))
-    """
+    #"""
     distance_array = np.load('distance_array.npy')
     with open('path_dict.pkl','rb') as f:
         path_dict = pickle.load(f)
