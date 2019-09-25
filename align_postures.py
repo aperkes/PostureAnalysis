@@ -2,15 +2,22 @@
 
 import os
 from fastdtw import fastdtw
+from fastdtw import dtw
+
 from scipy.spatial.distance import euclidean
 from scipy.ndimage.filters import gaussian_filter
 import numpy as np
 import pickle
 import random
 import pdb
-
+import datetime
 dimensions = True
 
+## Need to scale parameters, since I'm calculating euclidean distance, duh
+t_scale = 8
+e_scale = 42 * 10**4
+song_list = np.loadtxt('./song_list.txt', dtype=str,delimiter='/')
+song_dict = dict(zip(song_list[:,1],song_list[:,2]))
 ## Handy container for the sequence and its metrics
 class Trajectory:
     def __init__(self,index,from_file = True, seq_file = 0, seq1 = 0, seq2 = 0, path = 0):
@@ -19,17 +26,25 @@ class Trajectory:
         self.from_file = from_file
         if from_file:
 ## For now I don't need to store the seq
+            self.file_name = seq_file.split('/')[-1]
+            seq_name = self.file_name.split('.')[0]
             self.seq_data = np.genfromtxt(seq_file)
             self.ys = self.seq_data[:,5]
             self.e2 = self.seq_data[:,3]
             if dimensions:
-                self.data = self.seq_data[:,[5,3]]
+                self.data = self.seq_data[:,[5,3,0]]
+                #self.data = self.seq_data[:,[5,3]]
+## This will scale time to make it relative
+                self.data[:,2] = self.data[:,2] * t_scale
+                self.data[:,1] = self.data[:,1] * e_scale
             else:
                 self.data = self.ys
             self.ts = self.seq_data[:,0]
             ## This works regardless on dimensions!
             self.vel = np.diff(self.data,axis=0)
+            self.acc = np.diff(self.vel,axis=0)
             self.vel_t = self.ts[:-1]
+            self.acc_t = self.ts[:-2]
             self.cost = 0
             self.sum_cost = 0
             self.cost_ts = 0
@@ -37,17 +52,32 @@ class Trajectory:
             self.distance = 0
             self.hierarchy = index
             self.parents = [self.index,self.index]
+            self.song = song_dict[seq_name]
+            self.timestamp = self.seq_data[1,1]
+            self.time = datetime.datetime.fromtimestamp(self.timestamp).strftime('%H:%M')
+            self.hour = self.time.split(':')[0]
+            self.date = datetime.datetime.fromtimestamp(self.timestamp).strftime('%Y-%m-%d')
+            self.bird = 'CB1'
         else:
-            self.data,self.ts, self.cost,self.cost_ts = dtw_align(seq1,seq2,path)
+            self.data,self.ts, self.cost,self.cost_ts = dtw_align(seq1,seq2,path,strat='mean')
             self.vel = np.diff(self.data,axis=0)
             self.vel_t = self.ts[:-1]
+            self.acc = np.diff(self.vel,axis=0)
+            self.acc_t = self.ts[:-2]
             self.sum_cost = self.cost + seq1.cost + seq2.cost
             self.t_cost = calc_Tcost(seq1,seq2)
             self.hierarchy = [seq1.hierarchy,seq2.hierarchy]
             self.parents = [seq1.index,seq2.index]
+            self.song = np.nan
+            self.timestamp = np.nan
+            self.time = np.nan
+            self.date = np.nan
+            self.bird = np.nan
+
         self.define_window()
         if True:
             self.vel = np.diff(self.response_data)
+            self.acc = np.diff(self.vel)
             self.data = self.response_data
             self.ts = self.response_ts
             self.cost_ts = self.response_cost
@@ -56,7 +86,7 @@ class Trajectory:
         #smooth_data = np.transpose(gaussian_filter1d(np.transpose(self.data),sigma=2))
         #baseline = np.mean(smooth_data[np.logical_and(self.ts>= -.2,self.ts <= 0.0)])
         try:
-            t_baseline = min(self.ts[self.ts>= -2.0])
+            t_baseline = min(self.ts[self.ts>= -0.1])
         except:
             print('something broke!')
             pdb.set_trace()
@@ -113,11 +143,13 @@ def parse_postures(posture_dir):
 def dtw_align(p1,p2,path=0,strat="cost"):
     if not path:
         if True:
-            pdb.set_trace()
-            distance,path = fastdtw(p1.vel,p2.vel)
-
+            #pdb.set_trace()
+            distance,path = fastdtw(p1.vel,p2.vel,dist=euclidean)
+            #distance,path = dtw(p1.vel,p2.vel,dist=euclidean)
+            #distance,path = fastdtw(p1.acc,p2.acc,dist=euclidean)
         else:
-            distance,path = fastdtw(p1.data,p2.data)
+            #distance,path = dtw(p1.data,p2.data,dist=euclidean)
+            distance,path = fastdtw(p1.data,p2.data,dist=euclidean)
 ## Other strategies are always random, or use the length vs med_length
     if len(np.shape(p1.data)) > 1:
         dims = np.shape(p1.data)[1]
@@ -127,7 +159,7 @@ def dtw_align(p1,p2,path=0,strat="cost"):
     for p in range(len(path)):
         pair = path[p]
 # For now this is 1d, so no axis needed, eventually I will probably need an axis, or something
-        if strat=='cost':
+        if strat=='cost' or strat=='mean':
             p3_data[p] = np.mean([p1.data[pair[0]],p2.data[pair[1]]],0) 
         elif strat == 'canon':
             p3_data[p] = p2.data[pair[1]]
@@ -146,6 +178,13 @@ def get_ts(p1,p2,path,strat='cost'):
         for p in range(len(path)):
             pair = path[p]
             new_ts[p] = p1.ts[pair[0]]
+    elif strat == 'mean':
+        new_ts = np.empty(len(path))
+        for t in range(len(path)):
+            ## I'm still using the primary secondary naming, but here they are arbitrary
+            p_index = path[t][0]
+            s_index = path[t][1]
+            new_ts[t] = np.mean([p1.ts[p_index],p2.ts[s_index]])
     elif strat == 'cost':
         primary = get_primary(p1,p2,strat='cost')
         p_primary = (p1,p2)[primary]
@@ -249,7 +288,7 @@ if __name__ == "__main__":
 
 ## Initialize sparse array of distances
     #distance_key = list(range(len(seqs)))
-    #"""
+    """
     distance_array = np.load('distance_array.npy')
     with open('path_dict.pkl','rb') as f:
         path_dict = pickle.load(f)
@@ -262,9 +301,14 @@ if __name__ == "__main__":
     for i in range(len(seqs)):
         for j in range(i+1,len(seqs)):
 ### This defines what your posture data actually is, should be edited perhaps (to include eigen values also?)
-            p1_data = seqs[i].vel
-            p2_data = seqs[j].vel
+            if False:
+                p1_data = seqs[i].acc
+                p2_data = seqs[j].acc
+            else:
+                p1_data = seqs[i].data
+                p2_data = seqs[j].data
             print('working on',str(i),str(j))
+            #distance,path = dtw(p1_data,p2_data,dist=euclidean)
             distance,path = fastdtw(p1_data,p2_data,dist=euclidean)
 ## Store the paths! You'll want some of them later
             key = str(i) + ',' + str(j)
@@ -326,7 +370,9 @@ if __name__ == "__main__":
             print('working on',str(i_true),str(new_index))
             p1 = seqs[i_true]
             p2 = seqs[new_index]
-            new_array[i,-1],path = fastdtw(p1.vel,p2.vel,dist=euclidean)
+            #new_array[i,-1],path = fastdtw(p1.vel,p2.vel,dist=euclidean)
+            #new_array[i,-1],path = fastdtw(p1.acc,p2.acc,dist=euclidean)
+            new_array[i,-1],path = fastdtw(p1.data,p2.data,dist=euclidean)
             key = str(i_true) + ',' + str(new_index)
             path_dict[key] = path
         all_distances[n_baseSeqs + n,:np.shape(new_array)[1]] = new_array[-1]
