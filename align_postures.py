@@ -5,7 +5,7 @@ from fastdtw import fastdtw
 from fastdtw import dtw
 
 from scipy.spatial.distance import euclidean
-from scipy.ndimage.filters import gaussian_filter
+from scipy.ndimage.filters import gaussian_filter1d
 import numpy as np
 import pickle
 import random
@@ -22,6 +22,8 @@ song_dict = dict(zip(song_list[:,1],song_list[:,2]))
 class Trajectory:
     def __init__(self,index,from_file = True, seq_file = 0, seq1 = 0, seq2 = 0, path = 0):
         self.index = index
+        self.seq1 = seq1
+        self.seq2 = seq2
         self.file_path = seq_file
         self.from_file = from_file
         if from_file:
@@ -60,6 +62,7 @@ class Trajectory:
             self.bird = 'CB1'
         else:
             self.data,self.ts, self.cost,self.cost_ts = dtw_align(seq1,seq2,path,strat='mean')
+            self.ys = self.data[:,0]
             self.vel = np.diff(self.data,axis=0)
             self.vel_t = self.ts[:-1]
             self.acc = np.diff(self.vel,axis=0)
@@ -74,7 +77,14 @@ class Trajectory:
             self.date = np.nan
             self.bird = np.nan
 
-        self.define_window()
+        if from_file:
+            self.define_window()
+        else:
+            self.response_data = self.data
+            self.response_ts = self.ts
+            self.response_cost = self.cost
+            self.t_peak = 0
+            self.t_refraction = self.ts[-1]
         if True:
             self.vel = np.diff(self.response_data)
             self.acc = np.diff(self.vel)
@@ -83,8 +93,8 @@ class Trajectory:
             self.cost_ts = self.response_cost
 
     def define_window(self):
-        #smooth_data = np.transpose(gaussian_filter1d(np.transpose(self.data),sigma=2))
-        #baseline = np.mean(smooth_data[np.logical_and(self.ts>= -.2,self.ts <= 0.0)])
+        smooth_data = np.transpose(gaussian_filter1d(np.transpose(self.ys),sigma=2))
+        baseline = np.mean(smooth_data[np.logical_and(self.ts>= -.2,self.ts <= 0.0)])
         try:
             t_baseline = min(self.ts[self.ts>= -0.1])
         except:
@@ -93,15 +103,16 @@ class Trajectory:
         t_end = max(self.ts[self.ts<=5])
         t_baseline_index = np.where(self.ts == t_baseline)[0][0]
         t_end_index = np.where(self.ts == t_end)[0][0]
-        """
+        #"""
         reaction_range = (self.ts > 0) & (self.ts < 2)
         peak_angle = np.max(smooth_data[reaction_range])
         peak_index = np.where(smooth_data == peak_angle)[0][0]
+        self.t_peak = self.ts[peak_index]
         half_peak = peak_angle - (peak_angle - baseline) / 2
         refraction_range = smooth_data[self.ts > self.ts[peak_index]]
 
         try:
-            if len([refraction_range < half_peak]) > 1:
+            if len(refraction_range < half_peak) > 1:
                 refraction_index_fake = np.argmax(refraction_range < half_peak)
             else:
                 pdb.set_trace()
@@ -110,7 +121,9 @@ class Trajectory:
             pdb.set_trace()
         refraction_value = refraction_range[refraction_index_fake]
         refraction_index = np.where(smooth_data == refraction_value)[0][0]
-        """
+        self.t_refraction = self.ts[refraction_index]
+        t_end_index = refraction_index
+        #"""
         self.response_ts = self.ts[t_baseline_index:t_end_index]
         self.response_data = self.data[t_baseline_index:t_end_index]
         if not self.from_file:
