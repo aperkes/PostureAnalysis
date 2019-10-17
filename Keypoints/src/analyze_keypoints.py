@@ -6,18 +6,26 @@
 # order is as follows: 
 
 
-import sys
+import sys, os
 import numpy as np
+import pandas as pd
 import pdb
 
 ## Only need these lines if you're running remotely...
 from scipy.ndimage.filters import gaussian_filter1d as g_filter
 
 import matplotlib
-#matplotlib.use('Agg')
+matplotlib.use('Agg')
 
 from matplotlib import pyplot as plt
 
+BV_offset = 21.8 #ms Thanks bernd! 
+BV2_offset =  19.2 #ms
+BV_onsets = pd.read_csv('./2019-onsets-birdview.txt',delim_whitespace=True)
+BV2_onsets = pd.read_csv('./2019-onsets-birdview-2.txt',delim_whitespace=True)
+
+onset_dict = dict(zip(BV_onsets.iloc[:,0],BV_onsets.iloc[:,1]))
+onset_dict2 = dict(zip(BV2_onsets.iloc[:,0],BV2_onsets.iloc[:,1]))
 """
 0-2 Beak Tip 0
 3-5 Keel 1
@@ -199,76 +207,45 @@ class Sequence2:
 # 3. Smooth across postures? 
 # 4. Focus on paper: is this a useful method for analyzing posture. why? 
 if __name__ == "__main__":
-    f_name = sys.argv[1]
-    seq = Sequence2(f_name)
-    #my_seq.plot_me(show=True,save=False,smooth=True)
-    fig, ax = plt.subplots()
-    ax.plot(seq.tail_height)
-    ax.plot(seq.nice_data[:,0,2])
-    ax.plot(seq.center_point[:,2])
-    ax.plot(seq.nice_data[:,1,2])
-    fig.show()
-    raw_input('hey!')
-
-#XXX OLD CODE (still haven't set up the git for this...) 
-"""
-f_name = sys.argv[1]
-with open(f_name,'r') as my_file:
-    #line_count = len(my_file.readlines())
-    line_count = sum(1 for line in my_file) # slightly more memory efficient...?
-
-bodies = np.empty(line_count)
-tails = np.empty_like(bodies)
-heads = np.empty_like(bodies)
-wings = np.empty_like(bodies)
-
-with open(f_name,'r') as my_file:
-    for l in range(line_count):
-        line = my_file.readline()
-        line = line.split(',')
-        l_array = np.array(line,dtype=float)
-
-## Calculate Tail angle
-        tail_b = l_array[6:9]
-        tail_t = l_array[9:12]
-
-        tail_theta = point_angle(tail_b,tail_t)
-        tails[l] = tail_theta
-
-## Calculate Head Angle
-        eye_l = l_array[12:15]
-        eye_r = l_array[36:39]
-        eye_m = np.mean([eye_l,eye_r],0)
-        beak = l_array[0:3]
-        head_theta = point_angle(beak,eye_m)
-        heads[l] = head_theta
-
-## Calculate wing distance
-        l_wing = l_array[24:27]
-        r_wing = l_array[48:51]
-        wing_distance = np.round(np.linalg.norm(l_wing - r_wing),4)
-        wings[l] = wing_distance
-
-## Calculate body angle
-        shoulder_l = l_array[15:18]
-        shoulder_r = l_array[39:42]
-        shoulder_m = np.mean([shoulder_l,shoulder_r],0)
-        body_theta = point_angle(shoulder_m,tail_b)
-        bodies[l] = body_theta
-
-        print(tail_theta,head_theta,body_theta,wing_distance)
-    print(tails)
-
-fig,ax = plt.subplots()
-ax.plot(tails,label='tails')
-ax.plot(heads,label='heads')
-ax.plot(wings * 100,label='wings')
-ax.plot(bodies,label='bodies')
-ax.legend()
-
-fig.set_size_inches(10,5)
-fig.tight_layout()
-fig.savefig('test.jpg',dpi=300)
-"""
-
-
+    #f_name = sys.argv[1]
+    birdview2 = False
+    if birdview2:
+        offset = BV2_offset
+        onset_dict = onset_dict2
+    else:
+        offset = BV_offset 
+    outdir = './tail_heights'
+    data_dir = '/data/birds/postures/keypoints/2017_detections'
+    for seq_dir in os.listdir(data_dir):
+        print('working on',seq_dir)
+        if '201' in seq_dir:
+            f_name = data_dir + '/' + seq_dir + '/detections_3d.csv'
+            seq = Sequence2(f_name)
+            my_color = 'green'
+            fig, ax = plt.subplots()
+            if seq_dir in os.listdir('./video_timestamps'):
+                timestamps = np.genfromtxt('./video_timestamps/' + seq_dir + '.wav.txt',delimiter=' ')
+                ts = timestamps - timestamps[0]
+            else:
+                ts = np.arange(len(seq.tail_height))
+                timestamps = ts
+                print('timestamps not found for',seq_dir)
+                #pdb.set_trace()
+                my_color = 'blue'
+            if seq_dir + '.wav.bag' in onset_dict.keys():
+                if onset_dict[seq_dir + '.wav.bag'] == 'has':
+                    #pdb.set_trace()
+                    print('no audio for',seq_dir)
+                    my_color = 'red'
+                else:
+                    onset = float(onset_dict[seq_dir + '.wav.bag']) - (float(offset) * .001)
+                    stim_index = np.argmin(timestamps[:,1] >= onset)
+                    ax.axvline(ts[stim_index],color='r')
+            else:
+                print('onset not found for ',seq_dir)
+                my_color = 'blue'
+            smooth_tail = g_filter(seq.tail_height,5)
+            ax.plot(ts,smooth_tail,color=my_color)
+            ax.set_ylim([0.0,.4])
+            fig.savefig(outdir + '/' + seq_dir + '.png')
+            plt.cla()
