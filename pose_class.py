@@ -11,7 +11,6 @@ import pickle
 import random
 import pdb
 import datetime
-dimensions = True
 
 
 ### This needs to bring in the 20x point data
@@ -56,8 +55,10 @@ for f in os.listdir(bvTimeDir):
     bvTimeDict[seq_name] = np.genfromtxt(bvTimeDir + '/' + file_name,usecols=[1])
 
 ## Handy container for the sequence and its metrics
+STD = 3
+
 class Trajectory:
-    def __init__(self,file_path,index=-1):
+    def __init__(self,file_path,index=-1,use_smooth=True,smooth_std=STD):
         self.index = index
         if 'birdview2' in file_path:
             self.machine = 'birdview2'
@@ -66,7 +67,12 @@ class Trajectory:
         self.file_path = file_path
         self.file_name = file_path.split('/')[-1]
         self.seq_name = self.file_name.split('.')[0]
-        self.data = np.load(file_path)
+        self.rough_data = np.load(file_path)
+        self.smooth_data = gaussian_filter1d(self.data,smooth_std,0)
+        if use_smooth:
+            self.data = self.smooth_data
+        else:
+            self.data = self.rough_data
         self.time_string = self.seq_name.split('_')[0]
         self.save_time = datetime.datetime.strptime(self.time_string,'%Y-%m-%d-%H-%M-%S')
 
@@ -119,54 +125,166 @@ class Trajectory:
             n_frames = len(self.data)
             self.timestamps = np.arange(self.timestamp,self.timestamp + n_frames * self.sample_rate,1/self.sample_rate) - self.time)
             self.ts = self.timestamps - self.timestamps[0]
+            self.offset = 0
         self.time = datetime.datetime.fromtimestamp(self.timestamp).strftime('%H:%M')
         self.hour = self.time.split(':')[0]
         self.date = datetime.datetime.fromtimestamp(self.timestamp).strftime('%Y-%m-%d')
 
+## This defines the response window.
+## Just a place holder currently...
     def define_window(self):
-        smooth_data = gaussian_filter(self.data,sigma=2)
-        baseline = np.mean(smooth_data[np.logical_and(self.ts>= -.2,self.ts <= 0.0)])
-        try:
-            t_baseline = min(self.ts[self.ts>= -0.1])
-        except:
-            print('something broke!')
-            pdb.set_trace()
-        t_end = max(self.ts[self.ts<=5])
-        t_baseline_index = np.where(self.ts == t_baseline)[0][0]
-        t_end_index = np.where(self.ts == t_end)[0][0]
-        #"""
-        reaction_range = (self.ts > 0) & (self.ts < 2)
-        peak_angle = np.max(smooth_data[reaction_range])
-        peak_index = np.where(smooth_data == peak_angle)[0][0]
-        self.t_peak = self.ts[peak_index]
-        half_peak = peak_angle - (peak_angle - baseline) / 2
-        refraction_range = smooth_data[self.ts > self.ts[peak_index]]
+        self.response_data = self.data
+        return 0
 
-        try:
-            if len(refraction_range < half_peak) > 1:
-                refraction_index_fake = np.argmax(refraction_range < half_peak)
-            else:
-                pdb.set_trace()
-                refraction_index_fake = -1
-        except:
-            pdb.set_trace()
-        refraction_value = refraction_range[refraction_index_fake]
-        refraction_index = np.where(smooth_data == refraction_value)[0][0]
-        self.t_refraction = self.ts[refraction_index]
-        t_end_index = refraction_index
-        #"""
-        self.response_ts = self.ts[t_baseline_index:t_end_index]
-        self.response_data = self.data[t_baseline_index:t_end_index]
-        if not self.from_file:
-            #pdb.set_trace()
-            self.response_cost = self.cost_ts[t_baseline_index:t_end_index]
+## This builds the data vectors (return 4 types)
+# One is a bunch of angles (and velocities?)
+# the other is a set of pairwise distances (and velocities?)
+    def build_vectors(self):
+        self.define_angles()
+        self.define_distances()
+    
+    def define_distances(self,CDIST=False):
+        T,P,D = np.shape(data)
+        X_len = P * (P - 1) / 2
+        self.all_distances = np.empty([T,X_len])
+        self.moving_distances = np.empty([T,P])
+        pairwise_matrix = 0
+        for t in range(T):
+            self.all_distances[t] = pdist(data[t])
+            self.moving_distances[t] = np.linalg.norm((data[t] - data[t-1]),axis=1)
+        self.moving_distances[0] = np.zeros(P)
+        if CDIST:
+            pairwise_matrix = np.empty([T,P,P])
+            for t in range(T):
+                pairwise_matrix[t] = cdist(data[t],data[t])
+        return self.all_distances,pairwise_matrix
 
-## fastdtw has no concept of time shift
-## This will provide some cost for the time shift itself if needed (a bit unlikely, but worth having) 
-def calc_Tcost(seq1,seq2):
+    def define_angles(self):
+            
+        """
+        0-2 Beak Tip 0 BT
+        3-5 Keel 1 KE
+        6-8 Tailbone 2 TB
+        9-  Tip of Tail 3 TT
+        12- Left Eye 4 LE
+        15- Left Shoulder 5 LS
+        18- Left Elbow 6 LB
+        21- Left Wrist 7 LW
+        24- Left Wing Tip 8 LT
+        27- Left Knee 9 LK
+        30- Left Ankle 10 LA
+        33- Left Heel 11 LH
+        36- Right Eye 12 RE
+        39- Right Shoulder 13 RS
+        42- Right Elbow 14 RB
+        45- RIght Wrist 15 RW
+        48- Right Wing Tip 16 RT
+        51- Right Knee 17 RK
+        54- Right Ankle 18 RA
+        57- Right Heel 19 RH
+        Eye Center (mean of 4,12): 20 EC 
+        Neck (shoulder Center, mean of 5,13): 21 NC
+        """
+## Define all the angles!!! =/
+# Calculate all the angles!!! :D
+        angle_dict = {
+            'neck-eye-beak':0,
+            'eye-eye_center-horizontal':1,
+            'beak-eye_center-sagital':2
+            'left_elbow-wrist-tip':3,
+            'right_elbow-wrist-tip':4,
+            'left_wrist-neck-wrist':5,
+            'beak-neck-tailbone':6,
+            'neck-tailbone-tail':7,
+            'left_knee-tailbone-knee':8,
+            'tailbone-left_knee-ankle':9,
+            'tailbone-right_knee-ankle':10,
+            'left_knee-ankle-heel':11,
+            'right_knee-ankle-heel':12,
+        }
+        self.all_angles = np.zeros([len(self.data),14])
+# Neck-eye-beak (NC_EC_BT): 20-21,20-0 
+        EC_NC = self.data[:,20] - self.data[:,21]
+        EC_BT = self.data[:,20] - self.data[:,0]
+        NC_EC_BT = [angle(v1,v2) for v1,v2 in zip(EC_NC,EC_BT)]
+        self.all_angles[:,0] = NC_EC_BT
 
-    Tcost = np.abs(seq1.ts[0] - seq2.ts[0])
-    return Tcost
+# Eye-Eye_center-horizontal plane: 20-12(with z20),20-12
+        horizontal_eye = np.array(self.data[:,12])
+        horizontal_eye[:,2] = self.data[:,20,2]
+        EC_LE = self.data[:,20] - self.data[:,12]
+        EC_HP = self.data[:,20] - horizontal_eye
+        LE_EC_HP = [angle(v1,v2) for v1,v2 in zip(EC_LE,EC_HP)]
+        self.all_angles[:,1] = LE_EC_HP
+
+# Beak-eye_center-sagital plane
+        NC_TB = self.data[:,21] - self.data[:,2]
+        KE_TB = self.data[:,1] - self.data[:,2]
+        sagital_plane = np.cross(NC_TB,KE_TB)
+        BK_EC_SP = [angle(v1,v2) for v1,v2 in zip(EC_BT,sagital_plane)]
+        self.all_angles[:,2] = BK_EC_SP
+
+# Elbow-wrist-tip: 7-6,7-8 
+        LW_LB = self.data[:,7] - self.data[:,6]
+        LW_LT = self.data[:,7] - self.data[:,8]
+        LB_LW_LT = [angle(v1,v2) for v1,v2 in zip(LW_LB,LW_LT)]
+        self.all_angles[:,3] = LB_LW_LT
+
+# Right EWT: 15-14, 15-16
+        RW_RB = self.data[:,15] - self.data[:,14]
+        RW_RT = self.data[:,15] - self.data[:,16]
+        RB_RW_RT = [angle(v1,v2) for v1,v2 in zip(RW_RB,RW_RT)]
+        self.all_angles[:,4] = RB_RW_RT
+
+# Wrist-Neck-wrist: 21-7,21-15
+        NC_LW = self.data[:,21] - self.data[:,7]
+        NC_RW = self.data[:,21] - self.data[:,15]
+        LW_NC_RW = [angle(v1,v2) for v1,v2 in zip(NC_LW,NC_RW)]
+        self.all_angles[:,5] = LW_NC_RW
+
+# Beak-Neck-Tailbone: 21-2,21-20
+        NC_TB = self.data[:,21] - self.data[:,2]
+        NC_BT = self.data[:,21] - self.data[:,0]
+        BT_NC_TB = [angle(v1,v2) for v1,v2 in zip(NC_BT,NC_EC)]
+        self.all_angles[:,6] = BT_NC_TB
+
+# Neck-Tailbone-Tail: 2-21,2-3
+        TB_NC = self.data[:,2] - self.data[:,21]
+        TB_TT = self.data[:,2] - self.data[:,3]
+        NC_TB_TT = [angle(v1,v2) for v1,v2 in zip(TB_NC,TB_TT)]
+        self.all_angles[:,7] = NC_TB_TT
+
+# Knee-Tailbone-Knee: 2-9,2-17
+        TB_LK = self.data[:,2] - self.data[:,9]
+        TB_RK = self.data[:,2] - self.data[:,17]
+        LK_TB_RK = [angle(v1,v2) for v1,v2 in zip(TB_LK,TB_RK)]
+        self.all_angles[:,8] = LK_TB_RK
+
+# Tailbone-Knee-Ankle: 9-2,9-10
+        LK_TB = self.data[:,9] - self.data[:,2]
+        LK_LA = self.data[:,9] - self.data[:,10]
+        TB_LK_LA = [angle(v1,v2) for v1,v2 in zip(LK_TB,LK_LA)]
+        self.all_angles[:,9] = TB_LK_LA
+
+# Right TKA: 17-2,17-18
+        RK_TB = self.data[:,17] - self.data[:,2]
+        RK_RA = self.data[:,17] - self.data[:,18]
+        TB_RK_RA = [angle(v1,v2) for v1,v2 in zip(RK_TB,RK_RA)]
+        self.all_angles[:,10] = TB_RK_RA
+
+# Knee-Ankle-Heel: 10-9,10-11
+        LA_LK = self.data[:,10] - self.data[:,9]
+        LA_LH = self.data[:,10] - self.data[:,11]
+        LK_LA_LH = [angle(v1,v2) for v1,v2 in zip(LA_LK,LA_LH)]
+        self.all_angles[:,11] = LK_LA_LH
+
+# Right KAH: 18-17,18-19
+        RA_RK = self.data[:,18] - self.data[:,17]
+        RA_RH = self.data[:,18] - self.data[:,19]
+        RK_RA_RH = [angle(v1,v2) for v1,v2 in zip(RA_RK,RA_RH)]
+        self.all_angles[:,12] = RK_RA_RH 
+
+        return self.all_angles
 
 def parse_postures(posture_dir):
     seqs = []
@@ -182,251 +300,50 @@ def parse_postures(posture_dir):
             else:
                 seqs.append(Seq.ys)
     return seqs
-
-## This however is big
-def dtw_align(p1,p2,path=0,strat="cost"):
-    if not path:
-        if True:
-            #pdb.set_trace()
-            distance,path = fastdtw(p1.vel,p2.vel,dist=euclidean)
-            #distance,path = dtw(p1.vel,p2.vel,dist=euclidean)
-            #distance,path = fastdtw(p1.acc,p2.acc,dist=euclidean)
-        else:
-            #distance,path = dtw(p1.data,p2.data,dist=euclidean)
-            distance,path = fastdtw(p1.data,p2.data,dist=euclidean)
-## Other strategies are always random, or use the length vs med_length
-    if len(np.shape(p1.data)) > 1:
-        dims = np.shape(p1.data)[1]
-        p3_data = np.empty([len(path),dims])
-    else:
-        p3_data = np.empty(len(path))
-    for p in range(len(path)):
-        pair = path[p]
-# For now this is 1d, so no axis needed, eventually I will probably need an axis, or something
-        if strat=='cost' or strat=='mean':
-            p3_data[p] = np.mean([p1.data[pair[0]],p2.data[pair[1]]],0) 
-        elif strat == 'canon':
-            p3_data[p] = p2.data[pair[1]]
-    p3_ts,cost,cost_path = get_ts(p1,p2,path,strat)
-# Should the alignment actually exist inside the object? 
-    if len(p3_data) != len(cost_path):
-        pdb.set_trace()
-    return p3_data, p3_ts, cost, cost_path
-
-## Most complicated function here, figures out new ts
-def get_ts(p1,p2,path,strat='cost'):
-    costs, counts, indices,cost_path = dtw_cost(path)
-    if strat == 'canon':
-        primary = 0
-        new_ts = np.empty(len(path))
-        for p in range(len(path)):
-            pair = path[p]
-            new_ts[p] = p1.ts[pair[0]]
-    elif strat == 'mean':
-        new_ts = np.empty(len(path))
-        for t in range(len(path)):
-            ## I'm still using the primary secondary naming, but here they are arbitrary
-            p_index = path[t][0]
-            s_index = path[t][1]
-            new_ts[t] = np.mean([p1.ts[p_index],p2.ts[s_index]])
-    elif strat == 'cost':
-        primary = get_primary(p1,p2,strat='cost')
-        p_primary = (p1,p2)[primary]
-        p_secondary = (p1,p2)[not primary] ## a bit cheeky, but it works
-        get_middle = True
-        p_counts = counts[primary]
-        #s_counts = counts[not primary]
-        p_indices = indices[primary]
-        new_ts = np.empty(len(path))
-        t = 0
-        while t < len(path):
-            p_index = path[t][primary]
-            point_t = p_primary.ts[p_index]
-            c_index = int(p_indices[p_indices == p_index])
-            t_count = p_counts[c_index]
-            if t_count == 1:
-                new_ts[t] = point_t
-            if t_count > 1:
-                try:
-                    point_t0 = p_primary.ts[p_index - 1]
-                    point_t2 = p_primary.ts[p_index + 1]
-                except:
-                # Oops, out of bounds:
-                    if p_index == 0:
-                        point_t2 = p_primary.ts[p_index + 1]
-                        point_t0 = p_primary.ts[p_index] - abs(p_primary.ts[p_index] - point_t2)
-                    elif p_index == len(p_primary.ts) - 1:
-                        point_t0 = p_primary.ts[p_index - 1]
-                        point_t2 = p_primary.ts[p_index] + abs(p_primary.ts[p_index] - point_t0)
-                    else:
-                        print("Something weird happened, not sure what...")
-                        pdb.set_trace()
-                t_start = point_t - abs(point_t - point_t0)/2
-                t_end = point_t + abs(point_t2 - point_t)/2
-                t_len = abs(t_end - t_start)
-                for t_i in range(t_count):
-                    new_ts[t+t_i] = t_start + t_len / t_count
-            t += t_count
-    return new_ts, np.sum(costs), cost_path
-
-## This could be seen as a boolean question:
-# "Is p2 better than p1?"
-def get_primary(p1,p2,strat='sum_cost'):
-## Or you just take the average path...
-    if strat == 'cost':
-        if p1.cost > p2.cost:
-            return 0
-        elif p1.cost < p2.cost:
-            return 1
-        else:
-            strat = 'random'
-    elif strat == 'sum_cost':
-        if p1.sum_cost > p2.sum_cost:
-            return 0 
-        elif p1.sum_cost < p2.sum_cost:
-            return 1
-        else:
-            strat = 'random'
-    if strat == 'random':
-        return random.randint(0,1)
-# Just pick randomly
-
-## This too...calculates cost of a path
-## There is probably a more clever way to do this...
-def dtw_cost(path):
-    path_array = np.array(path)
-    cost_array = np.zeros_like(path_array,dtype=float)
-    cost_array0 = np.zeros(len(path_array),dtype=float)
-    cost_array1 = np.zeros_like(cost_array0,dtype=float)
-
-    indices_0, counts_0 = np.unique(path_array[:,0],return_counts=True)
-    indices_1, counts_1 = np.unique(path_array[:,1],return_counts=True)
-    for p in range(len(path_array)):
-        cost0 = counts_0[indices_0==path_array[p,0]]
-        cost1 = counts_1[indices_1==path_array[p,1]]
-        cost_array0[p] = np.log(cost0) / cost0
-        cost_array1[p] = np.log(cost1) / cost1
-        
-    cost_array[:,0] = cost_array0
-    cost_array[:,1] = cost_array1
-
-    costs = np.sum(cost_array,0)
-    #pdb.set_trace()
-    cost_path = np.max(cost_array,1)
-    counts = (counts_0,counts_1)
-    indices = (indices_0,indices_1)
-    return costs, counts, indices, cost_path
-    
+  
 if __name__ == "__main__":
-## Start with lots of postures (in N Dimensional space) 
-## This needs to be done well
-    posture_dir = './processed_postures/'
-    posture_list = os.listdir(posture_dir)
+## Read through all the postures and build a list of all of them
+    posture_dir = '/data/birds/postures/'
+    birdview_dir = 'birdview-2019/'
+    birdview2_dir = 'birdview2-2019/'
+
+    birdview_list = os.listdir(birdview_dir)
+    birdview2_list = os.listdir(birdview2_dir)
     seqs = []
-    path_dict = {}
-    for s in range(len(posture_list)):
-        index = s
-        file_path = posture_dir + posture_list[s]
-        Seq = Trajectory(index,from_file=True,seq_file = file_path)
-        seqs.append(Seq)
-
-## Initialize sparse array of distances
-    #distance_key = list(range(len(seqs)))
-    """
-    distance_array = np.load('distance_array.npy')
-    with open('path_dict.pkl','rb') as f:
-        path_dict = pickle.load(f)
-    """
-    distance_array = np.empty([len(seqs),len(seqs)])
-    distance_array.fill(np.nan)
-
-## Calculate the distances
-    print('calculating distances....')
-    for i in range(len(seqs)):
-        for j in range(i+1,len(seqs)):
-### This defines what your posture data actually is, should be edited perhaps (to include eigen values also?)
-            if False:
-                p1_data = seqs[i].acc
-                p2_data = seqs[j].acc
+    bird_list = [birdview_list,birdview2_list]
+    bird_dirs = [birdview_dir,birdview2_dir]
+    count = 0
+    for i in range(2):
+        posture_list = bird_list[i]
+        for s in range(len(posture_list)):
+            if '.wav.mp4' in posture_list[s]:
+                trimmed_path = posture_list[s].split('.')[0]
+                file_path = posture_dir + bird_dirs[i] + trimmed_path + '/pred_keypoints_3d.npy'
+                if not path.exists(file_path):
+                    print('no 3d keypoints for',trimmed_path)
+                    print('skipping to next posture...')
+                    continue
+                Seq = Trajectory(file_path,index=count)
+                seqs.append(Seq)
+                count += 1 
             else:
-                p1_data = seqs[i].data
-                p2_data = seqs[j].data
-            print('working on',str(i),str(j))
-            #distance,path = dtw(p1_data,p2_data,dist=euclidean)
-            distance,path = fastdtw(p1_data,p2_data,dist=euclidean)
-## Store the paths! You'll want some of them later
-            key = str(i) + ',' + str(j)
-            path_dict[key] = path
-            distance_array[i,j] = distance
+                continue
 
-    np.save('distance_array.npy',distance_array)
-    with open('path_dict.pkl','wb') as pickle_file:
-        pickle.dump(path_dict, pickle_file,pickle.HIGHEST_PROTOCOL)
-    #"""
-    new_array = np.copy(distance_array)
-# It keeps track of how the array index relates to the seq index
-    steps = len(seqs) - 1
-    n_baseSeqs = len(seqs)
-    index_key = list(range(n_baseSeqs))
-    all_distances = np.empty([len(distance_array) + steps,len(distance_array)])
-    all_distances.fill(np.nan)
-    all_distances[:len(distance_array),:len(distance_array)] = distance_array[:]
-    for n in range(steps):
-## Find min distance
-        print('setting up indices')
-        min_index = np.unravel_index(np.nanargmin(new_array), new_array.shape)
+## Build angle and distance vectors for seqs
+    angle_vector = seqs[0].all_angles
+    distance_vector = seqs[0].all_distances
 
-        all_index = np.arange(len(new_array))
-## Align those 2 postures
-        i,j = min_index
-        i_true = index_key[i]
-        j_true = index_key[j]
-        print('working on',i,j)
-        print('i.e.:',i_true,j_true)
-        print('starting alignment....')
-        new_index = n_baseSeqs + n
-## Add the new index and remove the two old ones
-        index_key.append(new_index)
-## Delete higher one first, fortunately, j should always be higher
-        del(index_key[j]);del(index_key[i])
-
-        key = str(i_true) + ',' + str(j_true)
-        p_aligned = Trajectory(new_index,from_file=False,seq1=seqs[i_true],seq2=seqs[j_true],path=path_dict[key])
-## Append to the sequence, and also append to the key. Thus the last entry will be the full phylogeny :D 
-        seqs.append(p_aligned)
-        #distance_key.append([distance_key[i_true],distance_key[j_true]])
-        print('finished!')
-
-## Prefill tables (basically you're copying everything but the columns you used
-## then adding the new distances as the last column) 
-        #pdb.set_trace()
-        print('prepping new array')
-        old_array = np.copy(new_array)
-        new_array = np.empty([len(old_array)-1,len(old_array)-1])
-        new_array.fill(np.nan)
-        sub_index = all_index[(all_index != i) & (all_index != j)]
-        new_array[:len(old_array)-2,:len(old_array)-2] = np.array(old_array[sub_index,:])[:,sub_index]
-        #pdb.set_trace()
-        print('calculating new distances...')
-## Calculate the new column
-        for i in range(len(index_key)-1):
-            i_true = index_key[i]
-            print('working on',str(i_true),str(new_index))
-            p1 = seqs[i_true]
-            p2 = seqs[new_index]
-            #new_array[i,-1],path = fastdtw(p1.vel,p2.vel,dist=euclidean)
-            #new_array[i,-1],path = fastdtw(p1.acc,p2.acc,dist=euclidean)
-            new_array[i,-1],path = fastdtw(p1.data,p2.data,dist=euclidean)
-            key = str(i_true) + ',' + str(new_index)
-            path_dict[key] = path
-        all_distances[n_baseSeqs + n,:np.shape(new_array)[1]] = new_array[-1]
-## Repeat that loop
+    for s in range(1,len(seqs)):
+        angle_vector = np.stack([angle_vector,seqs[s].all_angles])
+        distance_vector = np.stack([distance_vector,seqs[s].all_distances])
+   
+## Great, now do the PCA!
+## Debut everything else first though...
 
 ## I should track the distances also...
-    with open('path_dict.pkl','wb') as p:
-        pickle.dump(path_dict, p,pickle.HIGHEST_PROTOCOL)
     with open('seqs.dat','wb') as p:
         pickle.dump(seqs,p,pickle.HIGHEST_PROTOCOL)
-    np.save('all_distances.npy',all_distances)
+    np.save('distance_vector.npy',distance_vector)
+    np.save('angle_vector.npy',angle_vector)
     print("I did it!")
 
