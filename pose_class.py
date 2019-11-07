@@ -39,7 +39,8 @@ databaseCSV = '/data/birds/postures/presentation_info.csv'
 video_df = pd.read_csv(databaseCSV)
 
 ## Pandas dataframes with the offsets for each posture
-col_names = ['FileName','Offset','P-text','Power','R-test','Roll']
+col_names = ['FileName','Offset','P-text','Power','R-text','Roll']
+col_types = [str,float,str,float,str,float]
 bv_offsets = pd.read_csv(bvOffsetsCSV,delim_whitespace=True, names=col_names)
 bv2_offsets = pd.read_csv(bv2OffsetsCSV,delim_whitespace=True, names=col_names)
 
@@ -63,13 +64,13 @@ def angle(v1,v2):
     #angle = np.arccos(np.dot(v1,v2)/(np.linalg.norm(v1) * np.linalg.norm(v2)))
     angle = np.arctan(np.linalg.norm(v1-v2)/np.linalg.norm(v1))
 ## Quick hack to keep track of directionality 
+    angle = np.round(np.degrees(angle),4)
     if v2[2] < v1[2]:
         angle = angle * -1
-        angle = np.round(np.degrees(angle),4)
     return angle
 
 class Trajectory:
-    def __init__(self,file_path,index=-1,use_smooth=True,smooth_std=STD):
+    def __init__(self,file_path,index=-1,use_smooth=True,smooth_std=STD,sparse=True):
         self.index = index
         if 'birdview2' in file_path or 'birdview-2' in file_path:
             self.machine = 'birdview-2'
@@ -89,7 +90,7 @@ class Trajectory:
         self.save_time = datetime.datetime.strptime(self.time_string,'%Y-%m-%d-%H-%M-%S')
 
         self.get_meta()
-        self.build_vectors()
+        self.all_angles,_ = self.define_angles()
 
         ## This works regardless on dimensions!
         self.vel = np.diff(self.data,axis=0)
@@ -114,6 +115,10 @@ class Trajectory:
             self.song = meta_line['Song'].values[0]
             self.posture = meta_line['Posture'].values[0]
             self.sample_rate = meta_line['FrameRate'].values[0]
+            self.notes = meta_line['Notes'].values[0]
+            if pd.isnull(self.notes):
+                self.notes = 'none'
+            self.meta = meta_line
             if np.isnan(self.sample_rate):
                 self.sample_rate = 50
         except:
@@ -123,6 +128,7 @@ class Trajectory:
             self.song = 'Unknown'
             self.posture = -1 
             self.sample_rate = 50
+            self.notes = 'none'
         if self.machine == 'birdview':
             time_dict = bvTimeDict
             audio_offsets = bv_offsets
@@ -132,7 +138,11 @@ class Trajectory:
         try:
             self.timestamps = time_dict[self.seq_name]
             self.timestamp = self.timestamps[0]
-            self.offset = audio_offsets.loc[audio_offsets['FileName'] == self.file_name]['Offset']
+            self.offset = audio_offsets.loc[audio_offsets['FileName'] == self.file_name + '.wav.bag']['Offset'].values[0]
+            if not isinstance(self.offset,float):
+                print(self.offset)
+                pdb.set_trace()
+                self.offset = float(self.offset)
             self.ts = self.timestamps - self.offset
         except:
             #pdb.set_trace()
@@ -160,24 +170,25 @@ class Trajectory:
 # One is a bunch of angles (and velocities?)
 # the other is a set of pairwise distances (and velocities?)
     def build_vectors(self):
-        self.define_angles()
-        self.define_distances()
-    
+        all_angles,_ = self.define_angles()
+        all_distances,_ = self.define_distances()
+        return all_distances,all_angles
+         
     def define_distances(self,CDIST=False):
         T,P,D = np.shape(self.data)
         X_len = int(P * (P - 1) / 2)
-        self.all_distances = np.empty([T,X_len])
+        all_distances = np.empty([T,X_len])
         self.moving_distances = np.empty([T,P])
         pairwise_matrix = 0
         for t in range(T):
-            self.all_distances[t] = pdist(self.data[t])
+            all_distances[t] = pdist(self.data[t])
             self.moving_distances[t] = np.linalg.norm((self.data[t] - self.data[t-1]),axis=1)
         self.moving_distances[0] = np.zeros(P)
         if CDIST:
             pairwise_matrix = np.empty([T,P,P])
             for t in range(T):
                 pairwise_matrix[t] = cdist(data[t],data[t])
-        return self.all_distances,pairwise_matrix
+        return all_distances,pairwise_matrix
 
     def define_angles(self):
         eye_center = np.mean([self.data[:,4],self.data[:,12]],0)
@@ -228,12 +239,12 @@ class Trajectory:
             'left_knee-ankle-heel':11,
             'right_knee-ankle-heel':12,
         }
-        self.all_angles = np.zeros([len(self.data),14])
+        all_angles = np.zeros([len(self.data),14])
 # Neck-eye-beak (NC_EC_BT): 20-21,20-0 
         EC_NC = full_data[:,20] - full_data[:,21]
         EC_BT = full_data[:,20] - full_data[:,0]
         NC_EC_BT = [angle(v1,v2) for v1,v2 in zip(EC_NC,EC_BT)]
-        self.all_angles[:,0] = NC_EC_BT
+        all_angles[:,0] = NC_EC_BT
 
 # Eye-Eye_center-horizontal plane: 20-12(with z20),20-12
         horizontal_eye = np.array(full_data[:,12])
@@ -241,76 +252,76 @@ class Trajectory:
         EC_LE = full_data[:,20] - full_data[:,12]
         EC_HP = full_data[:,20] - horizontal_eye
         LE_EC_HP = [angle(v1,v2) for v1,v2 in zip(EC_LE,EC_HP)]
-        self.all_angles[:,1] = LE_EC_HP
+        all_angles[:,1] = LE_EC_HP
 
 # Beak-eye_center-sagital plane
         NC_TB = full_data[:,21] - full_data[:,2]
         KE_TB = full_data[:,1] - full_data[:,2]
         sagital_plane = np.cross(NC_TB,KE_TB)
         BK_EC_SP = [angle(v1,v2) for v1,v2 in zip(EC_BT,sagital_plane)]
-        self.all_angles[:,2] = BK_EC_SP
+        all_angles[:,2] = BK_EC_SP
 
 # Elbow-wrist-tip: 7-6,7-8 
         LW_LB = full_data[:,7] - full_data[:,6]
         LW_LT = full_data[:,7] - full_data[:,8]
         LB_LW_LT = [angle(v1,v2) for v1,v2 in zip(LW_LB,LW_LT)]
-        self.all_angles[:,3] = LB_LW_LT
+        all_angles[:,3] = LB_LW_LT
 
 # Right EWT: 15-14, 15-16
         RW_RB = full_data[:,15] - full_data[:,14]
         RW_RT = full_data[:,15] - full_data[:,16]
         RB_RW_RT = [angle(v1,v2) for v1,v2 in zip(RW_RB,RW_RT)]
-        self.all_angles[:,4] = RB_RW_RT
+        all_angles[:,4] = RB_RW_RT
 
 # Wrist-Neck-wrist: 21-7,21-15
         NC_LW = full_data[:,21] - full_data[:,7]
         NC_RW = full_data[:,21] - full_data[:,15]
         LW_NC_RW = [angle(v1,v2) for v1,v2 in zip(NC_LW,NC_RW)]
-        self.all_angles[:,5] = LW_NC_RW
+        all_angles[:,5] = LW_NC_RW
 
 # Beak-Neck-Tailbone: 21-2,21-20
         NC_TB = full_data[:,21] - full_data[:,2]
         NC_BT = full_data[:,21] - full_data[:,0]
         BT_NC_TB = [angle(v1,v2) for v1,v2 in zip(NC_BT,EC_NC)]
-        self.all_angles[:,6] = BT_NC_TB
+        all_angles[:,6] = BT_NC_TB
 
 # Neck-Tailbone-Tail: 2-21,2-3
         TB_NC = full_data[:,2] - full_data[:,21]
         TB_TT = full_data[:,2] - full_data[:,3]
         NC_TB_TT = [angle(v1,v2) for v1,v2 in zip(TB_NC,TB_TT)]
-        self.all_angles[:,7] = NC_TB_TT
+        all_angles[:,7] = NC_TB_TT
 
 # Knee-Tailbone-Knee: 2-9,2-17
         TB_LK = full_data[:,2] - full_data[:,9]
         TB_RK = full_data[:,2] - full_data[:,17]
         LK_TB_RK = [angle(v1,v2) for v1,v2 in zip(TB_LK,TB_RK)]
-        self.all_angles[:,8] = LK_TB_RK
+        all_angles[:,8] = LK_TB_RK
 
 # Tailbone-Knee-Ankle: 9-2,9-10
         LK_TB = full_data[:,9] - full_data[:,2]
         LK_LA = full_data[:,9] - full_data[:,10]
         TB_LK_LA = [angle(v1,v2) for v1,v2 in zip(LK_TB,LK_LA)]
-        self.all_angles[:,9] = TB_LK_LA
+        all_angles[:,9] = TB_LK_LA
 
 # Right TKA: 17-2,17-18
         RK_TB = full_data[:,17] - full_data[:,2]
         RK_RA = full_data[:,17] - full_data[:,18]
         TB_RK_RA = [angle(v1,v2) for v1,v2 in zip(RK_TB,RK_RA)]
-        self.all_angles[:,10] = TB_RK_RA
+        all_angles[:,10] = TB_RK_RA
 
 # Knee-Ankle-Heel: 10-9,10-11
         LA_LK = full_data[:,10] - full_data[:,9]
         LA_LH = full_data[:,10] - full_data[:,11]
         LK_LA_LH = [angle(v1,v2) for v1,v2 in zip(LA_LK,LA_LH)]
-        self.all_angles[:,11] = LK_LA_LH
+        all_angles[:,11] = LK_LA_LH
 
 # Right KAH: 18-17,18-19
         RA_RK = full_data[:,18] - full_data[:,17]
         RA_RH = full_data[:,18] - full_data[:,19]
         RK_RA_RH = [angle(v1,v2) for v1,v2 in zip(RA_RK,RA_RH)]
-        self.all_angles[:,12] = RK_RA_RH 
-        self.full_data = full_data
-        return self.all_angles
+        all_angles[:,12] = RK_RA_RH 
+        #self.full_data = full_data
+        return all_angles,full_data
 
 def parse_postures(posture_dir):
     seqs = []
@@ -356,22 +367,30 @@ if __name__ == "__main__":
                     continue
 
                 Seq = Trajectory(file_path,index=count)
+                if Seq.posture != 1 or "floor" in Seq.notes:
+                    print('Floor or non-posture, skipping....')
+                    continue
                 #""" Comment these lines out to do old approach
-                if count == 0:
+                elif count == 0:
                     angle_vector = Seq.all_angles
-                    distance_vector = Seq.all_distances
+                    distance_vector,_ = Seq.define_distances()
                 else:
+                    new_distances,_ = Seq.define_distances()
                     angle_vector = np.vstack([angle_vector,Seq.all_angles])
-                    distance_vector = np.vstack([distance_vector,Seq.all_distances])
-                 #"""
-                 #seqs.append(Seq)
+                    distance_vector = np.vstack([distance_vector,new_distances])
+                #"""
+                #seqs.append(Seq)
+                with open('./SeqClasses/' + Seq.seq_name + '.obj','wb') as p:
+                    pickle.dump(Seq,p,pickle.HIGHEST_PROTOCOL)
                 count += 1 
 
             else:
                 continue
 
     """
-    with open('seqs.dat','wb') as p:
+# Even for pretty small subsets, this makes it up to 4gb, which is really too big. 
+# I think I'll need to save the seq's individually and load them as needed. 
+    with open('posture_seqs.dat','wb') as p:
         pickle.dump(seqs,p,pickle.HIGHEST_PROTOCOL)
     """
     """
@@ -388,7 +407,7 @@ if __name__ == "__main__":
 ## Debut everything else first though...
 
 ## I should save these...
-    np.save('distance_vector.npy',distance_vector)
-    np.save('angle_vector.npy',angle_vector)
+    #np.save('posture_vector.npy',distance_vector)
+    #np.save('posture_angle_vector.npy',angle_vector)
     print("I did it!")
 
