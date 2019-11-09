@@ -19,22 +19,16 @@ import path
 ## Store everything necessary
 ## Perform internal analyses (i.e. build PCA structure) 
 
-## Input will be .npy file
-
-## Need to scale parameters, since I'm calculating euclidean distance, duh
-t_scale = 8
-e_scale = 42 * 10**4
-song_list = np.loadtxt('./song_list.txt', dtype=str,delimiter='/')
-song_dict = dict(zip(song_list[:,1],song_list[:,2]))
-
 ## Set file locations ###
 bv2TimeDir = '/data/birds/postures/birdview2-2019/2019_timestamps_birdview-2'
 bvTimeDir = '/data/birds/postures/birdview-2019/2019_timestamps_birdview'
 bvOffsetsCSV = '/data/birds/postures/birdview-2019/2019-onsets-birdview.txt'
 bv2OffsetsCSV = '/data/birds/postures/birdview2-2019/2019-onsets-birdview-2.txt'
 databaseCSV = '/data/birds/postures/presentation_info.csv'
+songfile = './song_list.txt'
 
 ## Read in Files ###
+song_list = np.genfromtxt(songfile,dtype=str)
 ## All of the meta data for all of the videos
 video_df = pd.read_csv(databaseCSV)
 
@@ -100,11 +94,6 @@ class Trajectory:
 
         if True:
             self.define_window()
-        if True:
-            self.vel = np.diff(self.response_data)
-            self.acc = np.diff(self.vel)
-            self.data = self.response_data
-            self.ts = self.response_ts
 
     def get_meta(self):
 
@@ -113,9 +102,20 @@ class Trajectory:
             meta_line = video_df.loc[video_df['SeqName'] == self.seq_name]
             self.bird = meta_line['Bird'].values[0]
             self.song = meta_line['Song'].values[0]
+            if pd.isnull(self.song):
+                #pdb.set_trace()
+                for s in song_list:
+                    if s in self.file_name:
+                        if s + '-' in self.file_name:
+                            self.song = s + '-'
+                        else:
+                            self.song = s
+                        break
             self.posture = meta_line['Posture'].values[0]
             self.sample_rate = meta_line['FrameRate'].values[0]
             self.notes = meta_line['Notes'].values[0]
+            if pd.isnull(self.bird):
+                self.bird = 'unknown'
             if pd.isnull(self.notes):
                 self.notes = 'none'
             self.meta = meta_line
@@ -139,6 +139,9 @@ class Trajectory:
             self.timestamps = time_dict[self.seq_name]
             self.timestamp = self.timestamps[0]
             self.offset = audio_offsets.loc[audio_offsets['FileName'] == self.file_name + '.wav.bag']['Offset'].values[0]
+            self.power = audio_offsets.loc[audio_offsets['FileName'] == self.file_name + '.wav.bag']['Power'].values[0]
+            if self.power < 1:
+                self.offset = self.timestamp
             if not isinstance(self.offset,float):
                 print(self.offset)
                 pdb.set_trace()
@@ -162,7 +165,56 @@ class Trajectory:
 ## This defines the response window.
 ## Just a place holder currently...
     def define_window(self):
-        self.response_data = self.data
+        if self.offset == 0:
+            ## Can't really do this. 
+            return 0 
+
+        ys = self.data[:,3,2] ## Decide on the 1d transform. This could be PCA
+        vel = np.diff(ys)
+        BASE_WINDOW = .5 * -1 ## Amount of time before
+        N_STD = 5 ## How many std defines the baseline window
+        REACT_WINDOW = 2
+        self.tzero = min(self.ts[self.ts >= 0])
+        self.tzero_index = np.where(self.ts == self.tzero)
+
+## Baseline:
+        self.t_baseline = min(self.ts[self.ts >= -1 * BASE_WINDOW])
+        self.t_baseline_index = np.where(self.ts == self.t_baseline)
+
+        self.baseline = np.mean(self.smooth_data[np.logical_and(self.ts >= BASE_WINDOW,self.ts <= 0.0)])
+        self.baseline_std = np.std(self.smooth_data[np.logical_and(self.ts >= BASE_WINDOW,self.ts <= 0.0)])
+## Calculage first motion
+        first_motion_index = np.argmax(np.logical_and(self.ts > 0, ys > (self.baseline + N_STD * self.baseline_std)))
+
+        first_motion = self.ts[first_motion_index]
+
+        self.t_latency = self.ts[first_motion_index]
+        self.t_latency_index = first_motion_index
+### Calculate VMAX
+        reaction_range = (self.ts > 0) & (self.ts < REACT_WINDOW)
+        vel_reaction_window = vel[reaction_range[:-1]]
+
+        self.peak_vel = max(vel_reaction_window)
+        self.peak_vel_index = np.where(vel == self.peak_vel)
+        self.t_peak_vel = self.ts[self.peak_vel_index]
+## CAlculate stabilization (proxy for peak)
+        neg_vel = np.where(vel <= 0)[0]
+        self.stable_vel_index = neg_vel[neg_vel > self.peak_vel_index[0]][0]
+        self.t_stable_vel = self.ts[self.stable_vel_index]
+## Refraction
+        refraction_range = ys[self.ts > self.ts[self.stable_vel_index]]
+        peak = ys[self.stable_vel_index]
+        half_peak = peak - (peak - self.baseline) / 2
+        refraction_value = refraction_range[np.argmax(refraction_range < half_peak)]
+        self.refraction_index = np.where(ys == refraction_value)
+        self.t_refraction = self.ts[self.refraction_index]
+
+## Duration
+        self.duration = np.asscalar(self.t_refraction - self.t_latency)
+
+        self.response_range = (self.ts > 0) & (self.ts < self.t_refraction)
+        self.posture_range = (self.ts > self.t_peak_vel) & (self.ts < self.t_refraction)
+        self.response_data = self.data[self.response_range]
         self.response_ts = self.ts
         return 0
 
@@ -356,6 +408,8 @@ if __name__ == "__main__":
 ## I think it pulls like 5Gb, and saving the seqs.dat breaks my computer
 ## Once I fix the lost data files, or include 2018, this is probably unsustainable.
     for i in range(2):
+        if i == 0:
+            continue
         posture_list = bird_list[i]
         for s in range(len(posture_list)):
             if '.wav.mp4' in posture_list[s]:
