@@ -19,38 +19,15 @@ import path
 ## Store everything necessary
 ## Perform internal analyses (i.e. build PCA structure) 
 
+#data_dir = '/data/birds/postures/'
+data_dir = './data_dir/'
 ## Set file locations ###
-bv2TimeDir = '/data/birds/postures/birdview2-2019/2019_timestamps_birdview-2'
-bvTimeDir = '/data/birds/postures/birdview-2019/2019_timestamps_birdview'
-bvOffsetsCSV = '/data/birds/postures/birdview-2019/2019-onsets-birdview.txt'
-bv2OffsetsCSV = '/data/birds/postures/birdview2-2019/2019-onsets-birdview-2.txt'
-databaseCSV = '/data/birds/postures/presentation_info.csv'
+bv2TimeDir = data_dir + 'birdview2-2019/2019_timestamps_birdview-2'
+bvTimeDir = data_dir + 'birdview-2019/2019_timestamps_birdview'
+bvOffsetsCSV = data_dir + 'birdview-2019/2019-onsets-birdview.txt'
+bv2OffsetsCSV = data_dir + 'birdview2-2019/2019-onsets-birdview-2.txt'
+databaseCSV = data_dir + 'presentation_info.csv'
 songfile = './song_list.txt'
-
-## Read in Files ###
-song_list = np.genfromtxt(songfile,dtype=str)
-## All of the meta data for all of the videos
-video_df = pd.read_csv(databaseCSV)
-
-## Pandas dataframes with the offsets for each posture
-col_names = ['FileName','Offset','P-text','Power','R-text','Roll']
-col_types = [str,float,str,float,str,float]
-bv_offsets = pd.read_csv(bvOffsetsCSV,delim_whitespace=True, names=col_names)
-bv2_offsets = pd.read_csv(bv2OffsetsCSV,delim_whitespace=True, names=col_names)
-
-## Dictionaries that provide an np array of rostime for each video frame
-bvTimeDict = {}
-bv2TimeDict = {}
-for f in os.listdir(bv2TimeDir):
-    file_name = f.split('/')[-1]
-    seq_name = file_name.split('.')[0]
-    bv2TimeDict[seq_name] = np.genfromtxt(bv2TimeDir + '/' + file_name,usecols=[1])
-
-for f in os.listdir(bvTimeDir):
-    file_name = f.split('/')[-1]
-    seq_name = file_name.split('.')[0]
-    bvTimeDict[seq_name] = np.genfromtxt(bvTimeDir + '/' + file_name,usecols=[1])
-
 ## Handy container for the sequence and its metrics
 STD = 3
 
@@ -390,6 +367,33 @@ def parse_postures(posture_dir):
                 seqs.append(Seq.ys)
     return seqs
   
+def load_files():
+
+## Read in Files ###
+    song_list = np.genfromtxt(songfile,dtype=str)
+## All of the meta data for all of the videos
+    video_df = pd.read_csv(databaseCSV)
+
+## Pandas dataframes with the offsets for each posture
+    col_names = ['FileName','Offset','P-text','Power','R-text','Roll']
+    col_types = [str,float,str,float,str,float]
+    bv_offsets = pd.read_csv(bvOffsetsCSV,delim_whitespace=True, names=col_names)
+    bv2_offsets = pd.read_csv(bv2OffsetsCSV,delim_whitespace=True, names=col_names)
+
+## Dictionaries that provide an np array of rostime for each video frame
+    bvTimeDict = {}
+    bv2TimeDict = {}
+    for f in os.listdir(bv2TimeDir):
+        file_name = f.split('/')[-1]
+        seq_name = file_name.split('.')[0]
+        bv2TimeDict[seq_name] = np.genfromtxt(bv2TimeDir + '/' + file_name,usecols=[1])
+
+    for f in os.listdir(bvTimeDir):
+        file_name = f.split('/')[-1]
+        seq_name = file_name.split('.')[0]
+        bvTimeDict[seq_name] = np.genfromtxt(bvTimeDir + '/' + file_name,usecols=[1])
+    return song_list,video_df,bv_offsets,bvTimeDict,bv2_offsets,bv2TimeDict
+
 if __name__ == "__main__":
 ## Read through all the postures and build a list of all of them
     posture_dir = '/data/birds/postures/'
@@ -398,6 +402,7 @@ if __name__ == "__main__":
 
     birdview_list = sorted(os.listdir(posture_dir + birdview_dir))
     birdview2_list = sorted(os.listdir(posture_dir + birdview2_dir))
+    song_list,video_df,bv_offsets,bvTimeDict,bv2_offsets,bv2TimeDict = load_files()
     seqs = []
     bird_list = [birdview_list,birdview2_list]
     bird_dirs = [birdview_dir,birdview2_dir]
