@@ -1,8 +1,6 @@
 #! /usr/bin/env python
 
 import os
-from fastdtw import fastdtw
-from fastdtw import dtw
 
 from scipy.spatial.distance import euclidean,pdist,cdist
 from scipy.ndimage.filters import gaussian_filter1d
