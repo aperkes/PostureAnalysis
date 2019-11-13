@@ -27,7 +27,7 @@ bv2OffsetsCSV = data_dir + 'birdview2-2019/2019-onsets-birdview-2.txt'
 databaseCSV = data_dir + 'presentation_info.csv'
 songfile = './song_list.txt'
 ## Handy container for the sequence and its metrics
-STD = 3
+STD = 5
 
 def angle(v1,v2):
     #angle = np.arccos(np.dot(v1,v2)/(np.linalg.norm(v1) * np.linalg.norm(v2)))
@@ -39,12 +39,17 @@ def angle(v1,v2):
     return angle
 
 class Trajectory:
-    def __init__(self,file_path,index=-1,use_smooth=True,smooth_std=STD,sparse=True):
+    def __init__(self,file_path,index=-1,use_smooth=True,smooth_std=STD,load_meta=False):
         self.index = index
-        if 'birdview2' in file_path or 'birdview-2' in file_path:
+        if load_meta:
+            global song_list,video_df,bv_offsets,bvTimeDict,bv2_offsets,bv2TimeDict
+            song_list,video_df,bv_offsets,bvTimeDict,bv2_offsets,bv2TimeDict = load_files()
+        if 'birdview2' in file_path:
             self.machine = 'birdview-2'
         else:
             self.machine = 'birdview'
+            if 'birdview-2/' in file_path:
+                pdb.set_trace()
         self.file_path = file_path
         self.file_name = file_path.split('/')[-2]
         self.seq_name = self.file_name.split('.')[0]
@@ -77,6 +82,7 @@ class Trajectory:
             meta_line = video_df.loc[video_df['SeqName'] == self.seq_name]
             self.bird = meta_line['Bird'].values[0]
             self.song = meta_line['Song'].values[0]
+            self.block = meta_line['Block'].values[0]
             if pd.isnull(self.song):
                 #pdb.set_trace()
                 for s in song_list:
@@ -89,8 +95,12 @@ class Trajectory:
             self.posture = meta_line['Posture'].values[0]
             self.sample_rate = meta_line['FrameRate'].values[0]
             self.notes = meta_line['Notes'].values[0]
+            if pd.isnull(self.posture):
+                self.posture = 0
             if pd.isnull(self.bird):
                 self.bird = 'unknown'
+            if pd.isnull(self.block):
+                self.block = -1
             if pd.isnull(self.notes):
                 self.notes = 'none'
             self.meta = meta_line
@@ -104,6 +114,7 @@ class Trajectory:
             self.posture = -1 
             self.sample_rate = 50
             self.notes = 'none'
+            self.block = -1
         if self.machine == 'birdview':
             time_dict = bvTimeDict
             audio_offsets = bv_offsets
@@ -123,7 +134,7 @@ class Trajectory:
                 self.offset = float(self.offset)
             self.ts = self.timestamps - self.offset
         except:
-            #pdb.set_trace()
+            pdb.set_trace()
             print('Timestamps not found for',self.file_path)
             print('Using file time, offset at 0th frame')
             DT = datetime.datetime(1970,1,1,00,00,00)
@@ -143,12 +154,22 @@ class Trajectory:
         if self.offset == 0:
             ## Can't really do this. 
             return 0 
+## Need to just set it by hand
+        if self.posture != 1:
+            self.tzero = min(self.ts[self.ts >= 0])
+            self.t_refraction = min(self.ts[self.ts >= 4])
+
+            self.response_range = (self.ts > 0) & (self.ts < self.t_refraction)
+            self.posture_range = (self.ts > 0) & (self.ts < self.t_refraction)
+            self.response_data = self.data[self.response_range]
+            self.response_ts = self.ts[self.response_range]
+            return 0
 
         ys = self.data[:,3,2] ## Decide on the 1d transform. This could be PCA
         vel = np.diff(ys)
-        BASE_WINDOW = .5 * -1 ## Amount of time before
-        N_STD = 5 ## How many std defines the baseline window
-        REACT_WINDOW = 2
+        BASE_WINDOW = .5 ## Amount of time before
+        N_STD = 10 ## How many std defines the baseline window
+        REACT_WINDOW = 3 ## This should include vmax for all postures
         self.tzero = min(self.ts[self.ts >= 0])
         self.tzero_index = np.where(self.ts == self.tzero)
 
@@ -156,8 +177,8 @@ class Trajectory:
         self.t_baseline = min(self.ts[self.ts >= -1 * BASE_WINDOW])
         self.t_baseline_index = np.where(self.ts == self.t_baseline)
 
-        self.baseline = np.mean(self.smooth_data[np.logical_and(self.ts >= BASE_WINDOW,self.ts <= 0.0)])
-        self.baseline_std = np.std(self.smooth_data[np.logical_and(self.ts >= BASE_WINDOW,self.ts <= 0.0)])
+        self.baseline = np.mean(ys[np.logical_and(self.ts >= self.tzero - BASE_WINDOW,self.ts <= 0.0)])
+        self.baseline_std = np.std(ys[np.logical_and(self.ts >= self.tzero - BASE_WINDOW,self.ts <= 0.0)])
 ## Calculage first motion
         first_motion_index = np.argmax(np.logical_and(self.ts > 0, ys > (self.baseline + N_STD * self.baseline_std)))
 
@@ -169,28 +190,43 @@ class Trajectory:
         reaction_range = (self.ts > 0) & (self.ts < REACT_WINDOW)
         vel_reaction_window = vel[reaction_range[:-1]]
 
-        self.peak_vel = max(vel_reaction_window)
-        self.peak_vel_index = np.where(vel == self.peak_vel)
-        self.t_peak_vel = self.ts[self.peak_vel_index]
+        self.vmax = max(vel_reaction_window)
+        self.vmax_index = np.where(vel == self.vmax)
+        self.t_vmax = self.ts[self.vmax_index]
+        self.y_vmax = ys[self.vmax_index]
 ## CAlculate stabilization (proxy for peak)
+## NOTE: This is pretty unstable. What if it pauses as it's going up? 
+## I could maybe fix this by smoothing it a lot. But max height might work better
         neg_vel = np.where(vel <= 0)[0]
-        self.stable_vel_index = neg_vel[neg_vel > self.peak_vel_index[0]][0]
+        self.stable_vel_index = neg_vel[neg_vel > self.vmax_index[0]][0]
         self.t_stable_vel = self.ts[self.stable_vel_index]
+## Peak Height
+        self.peak_height = max(ys[reaction_range])
+        self.peak_height_index = np.where(ys == self.peak_height)
+        self.t_peak = self.ts[self.peak_height_index]
 ## Refraction
-        refraction_range = ys[self.ts > self.ts[self.stable_vel_index]]
-        peak = ys[self.stable_vel_index]
-        half_peak = peak - (peak - self.baseline) / 2
-        refraction_value = refraction_range[np.argmax(refraction_range < half_peak)]
+        #refraction_range = ys[self.ts > self.ts[self.stable_vel_index]]
+        refraction_range = ys[np.logical_and(self.ts > self.t_peak,self.ts > self.t_vmax)]
+        peak = self.peak_height
+        #peak = ys[self.stable_vel_index] ## Use this if you want vstable
+         
+        half_peak = peak - (peak - self.y_vmax) * 2/3
+        refraction_point = np.argmax(refraction_range < half_peak)
+        #refraction_point = np.argmax(refraction_range < self.y_vmax)
+        if refraction_point == 0:
+            refraction_point = -1
+        refraction_value = refraction_range[refraction_point]
         self.refraction_index = np.where(ys == refraction_value)
+        
         self.t_refraction = self.ts[self.refraction_index]
 
 ## Duration
         self.duration = np.asscalar(self.t_refraction - self.t_latency)
 
         self.response_range = (self.ts > 0) & (self.ts < self.t_refraction)
-        self.posture_range = (self.ts > self.t_peak_vel) & (self.ts < self.t_refraction)
+        self.posture_range = (self.ts > self.t_vmax) & (self.ts < self.t_refraction)
         self.response_data = self.data[self.response_range]
-        self.response_ts = self.ts
+        self.response_ts = self.ts[self.response_range]
         return 0
 
 ## This builds the data vectors (return 4 types)
@@ -371,6 +407,7 @@ def load_files():
     song_list = np.genfromtxt(songfile,dtype=str)
 ## All of the meta data for all of the videos
     video_df = pd.read_csv(databaseCSV)
+    #pdb.set_trace()
 
 ## Pandas dataframes with the offsets for each posture
     col_names = ['FileName','Offset','P-text','Power','R-text','Roll']
@@ -384,12 +421,22 @@ def load_files():
     for f in os.listdir(bv2TimeDir):
         file_name = f.split('/')[-1]
         seq_name = file_name.split('.')[0]
-        bv2TimeDict[seq_name] = np.genfromtxt(bv2TimeDir + '/' + file_name,usecols=[1])
+        file_path = bv2TimeDir + '/' + file_name
+        if os.stat(file_path).st_size != 0:
+            bv2TimeDict[seq_name] = np.genfromtxt(bv2TimeDir + '/' + file_name,usecols=[1])
+        else:
+            print(file_path,'empty, skipping')
+            bv2TimeDict[seq_name] = 0
 
     for f in os.listdir(bvTimeDir):
         file_name = f.split('/')[-1]
         seq_name = file_name.split('.')[0]
-        bvTimeDict[seq_name] = np.genfromtxt(bvTimeDir + '/' + file_name,usecols=[1])
+        file_path = bvTimeDir + '/' + file_name
+        if os.stat(file_path).st_size != 0:
+            bvTimeDict[seq_name] = np.genfromtxt(bvTimeDir + '/' + file_name,usecols=[1])
+        else:
+            print(file_path,'empty, skipping')
+            bv2TimeDict[seq_name] = 0
     return song_list,video_df,bv_offsets,bvTimeDict,bv2_offsets,bv2TimeDict
 
 if __name__ == "__main__":
@@ -412,7 +459,8 @@ if __name__ == "__main__":
 ## Once I fix the lost data files, or include 2018, this is probably unsustainable.
     for i in range(2):
         if i == 0:
-            continue
+            pass
+            #continue
         posture_list = bird_list[i]
         for s in range(len(posture_list)):
             if '.wav.mp4' in posture_list[s]:

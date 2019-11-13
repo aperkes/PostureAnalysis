@@ -10,6 +10,7 @@ import sys, os
 import numpy as np
 import pandas as pd
 import pdb
+import pickle
 
 ## Only need these lines if you're running remotely...
 from scipy.ndimage.filters import gaussian_filter1d as g_filter
@@ -76,10 +77,16 @@ class Sequence2:
         self.f_name = f_name
         self.song = song
         self.bird = bird
+        self.date = 0
+        self.time_string = 0
+        self.hour = 0
         self.data = np.nan
         self.keep_data = keep_data
         
         self.read_data()
+        self.latency = 0
+        self.vmax_latency = 0
+        self.duration = 0
 
     def read_data(self):
         data = np.genfromtxt(self.f_name,delimiter = ',')
@@ -89,49 +96,6 @@ class Sequence2:
             self.nice_data = nice_data
         line_count = len(data)
         self.line_count = line_count
-        """
-        bodies = np.empty(line_count)
-        tails = np.empty_like(bodies)
-        heads = np.empty_like(bodies)
-        wings = np.empty_like(bodies)
-
-        for l in range(line_count):
-## This would be a little faster with proper array methods
-## But this is honestly probably more intuitive and legible
-            l_array = data[l]
-## Calculate Tail angle
-            tail_b = l_array[6:9]
-            tail_t = l_array[9:12]
-
-            tail_theta = point_angle(tail_b,tail_t)
-            tails[l] = tail_theta
-
-## Calculate Head Angle
-            eye_l = l_array[12:15]
-            eye_r = l_array[36:39]
-            eye_m = np.mean([eye_l,eye_r],0)
-            beak = l_array[0:3]
-            head_theta = point_angle(beak,eye_m)
-            heads[l] = head_theta
-
-## Calculate wing distance
-            l_wing = l_array[24:27]
-            r_wing = l_array[48:51]
-            wing_distance = np.round(np.linalg.norm(l_wing - r_wing),4)
-            wings[l] = wing_distance
-
-## Calculate body angle
-            shoulder_l = l_array[15:18]
-            shoulder_r = l_array[39:42]
-            shoulder_m = np.mean([shoulder_l,shoulder_r],0)
-            body_theta = point_angle(shoulder_m,tail_b)
-            bodies[l] = body_theta
-
-        self.bodies = bodies
-        self.tails = tails
-        self.heads = heads
-        self.wings = wings
-        """
 ## 9 Body metrics (based off of reliable metrics)
 ## Should probably do this with matrix notation to avoid all the loops (or do it fast to save my own time)
 
@@ -166,6 +130,7 @@ class Sequence2:
         #import pdb
         #pdb.set_trace()
         self.feature_list = ['body angle','head rotation','head angle','wing distance','tail rotation','tail angle','right leg','left leg','tail height']
+        self.smooth_tail = g_filter(self.tail_height,5)
         return 0
 
     def plot_me(self,show=True,save=False,smooth=False):
@@ -208,24 +173,28 @@ class Sequence2:
 # 4. Focus on paper: is this a useful method for analyzing posture. why? 
 if __name__ == "__main__":
     #f_name = sys.argv[1]
-    birdview2 = False
+    birdview2 = True
     if birdview2:
         offset = BV2_offset
         onset_dict = onset_dict2
     else:
         offset = BV_offset 
     outdir = './tail_heights'
-    data_dir = '/data/birds/postures/keypoints/2017_detections'
+    data_dir = '/data/birds/postures/keypoints/2019_detections'
+    seqs = []
     for seq_dir in os.listdir(data_dir):
         print('working on',seq_dir)
-        if '201' in seq_dir:
+        if '2019-06' in seq_dir:
             f_name = data_dir + '/' + seq_dir + '/detections_3d.csv'
             seq = Sequence2(f_name)
+            seqs.append(seq)
             my_color = 'green'
             fig, ax = plt.subplots()
-            if seq_dir in os.listdir('./video_timestamps'):
+            if seq_dir + '.wav.txt' in os.listdir('./video_timestamps'):
                 timestamps = np.genfromtxt('./video_timestamps/' + seq_dir + '.wav.txt',delimiter=' ')
                 ts = timestamps - timestamps[0]
+
+                ts = ts[:,1]
             else:
                 ts = np.arange(len(seq.tail_height))
                 timestamps = ts
@@ -239,7 +208,8 @@ if __name__ == "__main__":
                     my_color = 'red'
                 else:
                     onset = float(onset_dict[seq_dir + '.wav.bag']) - (float(offset) * .001)
-                    stim_index = np.argmin(timestamps[:,1] >= onset)
+                    #pdb.set_trace()
+                    stim_index = np.argmax(timestamps[:,1] >= onset) ## this provides the first 1
                     ax.axvline(ts[stim_index],color='r')
             else:
                 print('onset not found for ',seq_dir)
@@ -249,3 +219,7 @@ if __name__ == "__main__":
             ax.set_ylim([0.0,.4])
             fig.savefig(outdir + '/' + seq_dir + '.png')
             plt.cla()
+        else:
+            print('skipping',seq_dir)
+    with open('2019_seqs.dat','wb') as p:
+        pickle.dump(seqs,p,pickle.HIGHEST_PROTOCOL)
