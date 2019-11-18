@@ -26,6 +26,9 @@ bvOffsetsCSV = data_dir + 'birdview-2019/2019-onsets-birdview.txt'
 bv2OffsetsCSV = data_dir + 'birdview2-2019/2019-onsets-birdview-2.txt'
 databaseCSV = data_dir + 'presentation_info.csv'
 songfile = './song_list.txt'
+
+out_dir = './SeqClasses/'
+#out_dir = './CrapSeqs/'
 ## Handy container for the sequence and its metrics
 STD = 5
 
@@ -107,14 +110,14 @@ class Trajectory:
             if np.isnan(self.sample_rate):
                 self.sample_rate = 50
         except:
-            pdb.set_trace()
+            #pdb.set_trace()
             print('could not find meta data for',self.file_path)
             self.bird = 'Unknown'
             self.song = 'Unknown'
-            self.posture = -1 
+            self.posture = np.nan 
             self.sample_rate = 50
             self.notes = 'none'
-            self.block = -1
+            self.block = np.nan 
         if self.machine == 'birdview':
             time_dict = bvTimeDict
             audio_offsets = bv_offsets
@@ -130,18 +133,18 @@ class Trajectory:
                 self.offset = self.timestamp
             if not isinstance(self.offset,float):
                 print(self.offset)
-                pdb.set_trace()
+                #pdb.set_trace()
                 self.offset = float(self.offset)
             self.ts = self.timestamps - self.offset
         except:
-            pdb.set_trace()
+            #pdb.set_trace()
             print('Timestamps not found for',self.file_path)
             print('Using file time, offset at 0th frame')
             DT = datetime.datetime(1970,1,1,00,00,00)
             my_datetime = self.save_time - datetime.timedelta(minutes=3)
             self.timestamp = (my_datetime - DT).total_seconds()
             n_frames = len(self.data)
-            self.timestamps = np.arange(self.timestamp,self.timestamp + n_frames * self.sample_rate,1/self.sample_rate)
+            self.timestamps = np.arange(self.timestamp,self.timestamp + n_frames / self.sample_rate,1/self.sample_rate)
             self.ts = self.timestamps - self.timestamps[0]
             self.offset = 0
         self.time = datetime.datetime.fromtimestamp(self.timestamp).strftime('%H:%M')
@@ -472,10 +475,22 @@ if __name__ == "__main__":
                     continue
 
                 Seq = Trajectory(file_path,index=count)
-                if Seq.posture != 1 or "floor" in Seq.notes:
-                    print('Floor or non-posture, skipping....')
+                if Seq.posture == 0 or "floor" in Seq.notes:
+                    
+                    print('Floor or non-posture, skipping it')
                     continue
-                #""" Comment these lines out to do old approach
+                else:
+                    pass
+                    #print('Good posture, working on it ')
+                    #continue
+                """
+                if Seq.posture != 1 or "floor" in Seq.notes:
+                    print('Floor or non-posture, going for it!!!')
+                    new_distances,_ = Seq.define_distances()
+                    angle_vector = np.vstack([angle_vector,Seq.all_angles])
+                    distance_vector = np.vstack([distance_vector,new_distances])
+                    #continue
+                # Comment these lines out to do old approach
                 elif count == 0:
                     angle_vector = Seq.all_angles
                     distance_vector,_ = Seq.define_distances()
@@ -483,9 +498,10 @@ if __name__ == "__main__":
                     new_distances,_ = Seq.define_distances()
                     angle_vector = np.vstack([angle_vector,Seq.all_angles])
                     distance_vector = np.vstack([distance_vector,new_distances])
-                #"""
+                
                 #seqs.append(Seq)
-                with open('./SeqClasses/' + Seq.seq_name + '.obj','wb') as p:
+                """
+                with open(out_dir + Seq.seq_name + '.obj','wb') as p:
                     pickle.dump(Seq,p,pickle.HIGHEST_PROTOCOL)
                 count += 1 
 
