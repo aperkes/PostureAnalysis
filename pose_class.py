@@ -20,6 +20,7 @@ import path
 #data_dir = '/data/birds/postures/'
 data_dir = './data_dir/'
 ## Set file locations ###
+YEAR = 2019
 bv2TimeDir = data_dir + 'birdview2-2019/2019_timestamps_birdview-2'
 bvTimeDir = data_dir + 'birdview-2019/2019_timestamps_birdview'
 bvOffsetsCSV = data_dir + 'birdview-2019/2019-onsets-birdview.txt'
@@ -82,7 +83,12 @@ class Trajectory:
 
         try:
             #pdb.set_trace()
-            meta_line = video_df.loc[video_df['SeqName'] == self.seq_name]
+## Dirty hack to deal with some differences in file saving between years
+            if '2018' in self.seq_name:
+                split_name = self.seq_name.split('_')[0]
+                meta_line = video_df.loc[video_df['SeqName'] == split_name]
+            else:
+                meta_line = video_df.loc[video_df['SeqName'] == self.seq_name]
             self.bird = meta_line['Bird'].values[0]
             self.song = meta_line['Song'].values[0]
             self.block = meta_line['Block'].values[0]
@@ -125,10 +131,19 @@ class Trajectory:
             time_dict = bv2TimeDict
             audio_offsets = bv2_offsets
         try:
-            self.timestamps = time_dict[self.seq_name]
+## Dirty hack to deal with some differences in file saving between years
+            if '2018' in self.seq_name:
+                self.timestamps = time_dict[split_name]
+            else:
+                self.timestamps = time_dict[self.seq_name]
             self.timestamp = self.timestamps[0]
-            self.offset = audio_offsets.loc[audio_offsets['FileName'] == self.file_name + '.wav.bag']['Offset'].values[0]
-            self.power = audio_offsets.loc[audio_offsets['FileName'] == self.file_name + '.wav.bag']['Power'].values[0]
+            if '2018' in self.seq_name:
+                self.offset = audio_offsets.loc[audio_offsets['FileName'] == self.file_name + '.wav.mp4']['Offset'].values[0]
+                self.power = audio_offsets.loc[audio_offsets['FileName'] == self.file_name + '.wav.mp4']['Power'].values[0]
+
+            else:
+                self.offset = audio_offsets.loc[audio_offsets['FileName'] == self.file_name + '.wav.bag']['Offset'].values[0]
+                self.power = audio_offsets.loc[audio_offsets['FileName'] == self.file_name + '.wav.bag']['Power'].values[0]
             if self.power < 1:
                 self.offset = self.timestamp
             if not isinstance(self.offset,float):
@@ -136,6 +151,10 @@ class Trajectory:
                 #pdb.set_trace()
                 self.offset = float(self.offset)
             self.ts = self.timestamps - self.offset
+            if np.shape(self.ts)[0] != np.shape(self.data)[0]:
+                print('Something broke somewhere...')
+                print(np.shape(self.ts)[0],np.shape(self.data)[0])
+                raise IndexError 
         except:
             #pdb.set_trace()
             print('Timestamps not found for',self.file_path)
@@ -204,7 +223,8 @@ class Trajectory:
         self.stable_vel_index = neg_vel[neg_vel > self.vmax_index[0]][0]
         self.t_stable_vel = self.ts[self.stable_vel_index]
 ## Peak Height
-        self.peak_height = max(ys[reaction_range])
+        peak_range = (self.ts > self.t_vmax) & (self.ts < REACT_WINDOW+self.t_vmax)
+        self.peak_height = max(ys[peak_range])
         self.peak_height_index = np.where(ys == self.peak_height)
         self.t_peak = self.ts[self.peak_height_index]
 ## Refraction
@@ -235,6 +255,10 @@ class Trajectory:
 ## This builds the data vectors (return 4 types)
 # One is a bunch of angles (and velocities?)
 # the other is a set of pairwise distances (and velocities?)
+
+## somehow this should both center and rotate the position
+    #def center_data(self):
+        
     def build_vectors(self):
         all_angles,_ = self.define_angles()
         all_distances,_ = self.define_distances()
@@ -436,6 +460,7 @@ def load_files():
         seq_name = file_name.split('.')[0]
         file_path = bvTimeDir + '/' + file_name
         if os.stat(file_path).st_size != 0:
+            #print(file_name)
             bvTimeDict[seq_name] = np.genfromtxt(bvTimeDir + '/' + file_name,usecols=[1])
         else:
             print(file_path,'empty, skipping')
@@ -444,6 +469,7 @@ def load_files():
 
 if __name__ == "__main__":
 ## Read through all the postures and build a list of all of them
+    print('here we go!')
     posture_dir = '/data/birds/postures/'
     birdview_dir = 'birdview-2019/'
     birdview2_dir = 'birdview2-2019/'
@@ -456,10 +482,12 @@ if __name__ == "__main__":
     bird_dirs = [birdview_dir,birdview2_dir]
     count = 0
     seqs_size = 0
-## NOTE: This works, but only just. 
-## Loading all the seqs into memory takes up the majority of my RAM
-## I think it pulls like 5Gb, and saving the seqs.dat breaks my computer
-## Once I fix the lost data files, or include 2018, this is probably unsustainable.
+
+
+    #file_path = '/data/birds/postures/birdview-2018/2018-05-23-11-18-00_BOD/pred_keypoints_3d.npy'
+    print('#### TESTING IT ####')
+    #Seq = Trajectory(file_path)
+    #pdb.set_trace()
     for i in range(2):
         if i == 0:
             pass
@@ -467,6 +495,7 @@ if __name__ == "__main__":
         posture_list = bird_list[i]
         for s in range(len(posture_list)):
             if '.wav.mp4' in posture_list[s]:
+                print(s,': working on',posture_list[s])
                 trimmed_path = posture_list[s].split('.')[0]
                 file_path = posture_dir + bird_dirs[i] + trimmed_path + '/pred_keypoints_3d.npy'
                 if not os.path.exists(file_path):
@@ -474,11 +503,15 @@ if __name__ == "__main__":
                     print('skipping to next posture...')
                     continue
 
+                print('making seq for',file_path)
                 Seq = Trajectory(file_path,index=count)
                 if Seq.posture == 0 or "floor" in Seq.notes:
                     
-                    print('Floor or non-posture, skipping it')
-                    continue
+                    print('Floor or non-posture, but I can do it!')
+                    print('Saving it to CrapSeqs')
+                    with open('./CrapSeqs/' + Seq.seq_name + '.obj','wb') as p:
+                        pickle.dump(Seq,p,pickle.HIGHEST_PROTOCOL)
+                    #continue
                 else:
                     pass
                     #print('Good posture, working on it ')
