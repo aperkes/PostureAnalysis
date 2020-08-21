@@ -40,6 +40,11 @@ if True:
     print(model_block.fit())
 
 if True:
+    f_block_df = pd.read_csv('./f_block_df.csv')
+    model_bf = Lmer('Later_Rate~B1_Posture + AvgPotency + (1|Bird) + (1|Song) + (1|Aviary) + (1|SongSet)',data=f_block_df)
+    print(model_bf.fit())
+
+if True:
     csd_df = pd.read_csv('./csd_df.csv')
     model_csd = Lmer('Partial_CSD ~ AvgPotency + (1|Bird) + (1|Block) + (1|Song) + (1|Aviary) + (1|SongSet)',data=csd_df) 
     print(model_csd.fit())
@@ -58,3 +63,4 @@ if True:
     max_song_df = pd.read_csv('./max_song_df.csv')
     model_ms = Lmer('Posture~ResponseRate + AvgPotency + (1|Bird) + (1|Block) + (1|Song) + (1|Aviary) + (1|SongSet)',data=max_song_df)
     print(model_ms.fit())
+
