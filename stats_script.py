@@ -48,3 +48,13 @@ if True:
     partials_df = pd.read_csv('./partials_df.csv')
     model_partials = Lmer('AvgPotency~ResponseRate + (1|Bird) + (1|Block) + (1|Aviary) + (1|SongSet)',data=partials_df)
     print(model_partials.fit())
+
+if True:
+    song_bird_df = pd.read_csv('./song_bird_df.csv')
+    model_sb = Lmer('Posture~ResponseRate + AvgPotency + (1|Bird) + (1|Block) + (1|Song) + (1|Aviary) + (1|SongSet)',data=song_bird_df)
+    print(model_sb.fit())
+
+if True:
+    max_song_df = pd.read_csv('./max_song_df.csv')
+    model_ms = Lmer('Posture~ResponseRate + AvgPotency + (1|Bird) + (1|Block) + (1|Song) + (1|Aviary) + (1|SongSet)',data=max_song_df)
+    print(model_ms.fit())
