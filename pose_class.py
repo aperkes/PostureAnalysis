@@ -20,11 +20,11 @@ import path
 #data_dir = '/data/birds/postures/'
 data_dir = './data_dir/'
 ## Set file locations ###
-YEAR = 2019
-bv2TimeDir = data_dir + 'birdview2-2019/2019_timestamps_birdview-2'
-bvTimeDir = data_dir + 'birdview-2019/2019_timestamps_birdview'
-bvOffsetsCSV = data_dir + 'birdview-2019/2019-onsets-birdview.txt'
-bv2OffsetsCSV = data_dir + 'birdview2-2019/2019-onsets-birdview-2.txt'
+YEAR = 2018
+bv2TimeDir = data_dir + 'birdview2-2018/2018_timestamps_birdview-2'
+bvTimeDir = data_dir + 'birdview-2018/2018_timestamps_birdview'
+bvOffsetsCSV = data_dir + 'birdview-2018/2018-onsets-birdview.txt'
+bv2OffsetsCSV = data_dir + 'birdview2-2018/2018-onsets-birdview-2.txt'
 databaseCSV = data_dir + 'presentation_info.csv'
 songfile = './song_list.txt'
 
@@ -68,7 +68,7 @@ class Trajectory:
         self.save_time = datetime.datetime.strptime(self.time_string,'%Y-%m-%d-%H-%M-%S')
 
         self.get_meta()
-        self.all_angles,_ = self.define_angles()
+        #self.all_angles,_ = self.define_angles()
 
         ## This works regardless on dimensions!
         self.vel = np.diff(self.data,axis=0)
@@ -77,7 +77,12 @@ class Trajectory:
         self.acc_t = self.ts[:-2]
 
         if True:
-            self.define_window()
+            try:
+                self.define_window()
+                self.clean = True
+            except:
+                print('Define Window Failed, likely a floor posture')
+                self.clean = False
 
     def get_meta(self):
 
@@ -89,6 +94,8 @@ class Trajectory:
                 meta_line = video_df.loc[video_df['SeqName'] == split_name]
             else:
                 meta_line = video_df.loc[video_df['SeqName'] == self.seq_name]
+            if len(meta_line) > 1:
+                meta_line = meta_line.loc[meta_line['Source'] == self.machine]
             self.bird = meta_line['Bird'].values[0]
             self.song = meta_line['Song'].values[0]
             self.block = meta_line['Block'].values[0]
@@ -138,8 +145,12 @@ class Trajectory:
                 self.timestamps = time_dict[self.seq_name]
             self.timestamp = self.timestamps[0]
             if '2018' in self.seq_name:
-                self.offset = audio_offsets.loc[audio_offsets['FileName'] == self.file_name + '.wav.mp4']['Offset'].values[0]
-                self.power = audio_offsets.loc[audio_offsets['FileName'] == self.file_name + '.wav.mp4']['Power'].values[0]
+                if self.machine == 'birdview-2':
+                    bonus = '_' + self.song
+                else:
+                    bonus = '_' + self.song
+                self.offset = audio_offsets.loc[audio_offsets['FileName'] == self.file_name + bonus + '.wav.mp4']['Offset'].values[0]
+                self.power = audio_offsets.loc[audio_offsets['FileName'] == self.file_name + bonus + '.wav.mp4']['Power'].values[0]
 
             else:
                 self.offset = audio_offsets.loc[audio_offsets['FileName'] == self.file_name + '.wav.bag']['Offset'].values[0]
@@ -156,8 +167,8 @@ class Trajectory:
                 print(np.shape(self.ts)[0],np.shape(self.data)[0])
                 raise IndexError 
         except:
-            #pdb.set_trace()
-            print('Timestamps not found for',self.file_path)
+            pdb.set_trace()
+            print('No Good timestamps not found for',self.file_path)
             print('Using file time, offset at 0th frame')
             DT = datetime.datetime(1970,1,1,00,00,00)
             my_datetime = self.save_time - datetime.timedelta(minutes=3)
@@ -187,7 +198,7 @@ class Trajectory:
             self.response_ts = self.ts[self.response_range]
             return 0
 
-        ys = self.data[:,3,2] ## Decide on the 1d transform. This could be PCA
+        ys = self.data[:,10,2] ## Decide on the 1d transform. This could be PCA
         vel = np.diff(ys)
         BASE_WINDOW = .5 ## Amount of time before
         N_STD = 10 ## How many std defines the baseline window
@@ -212,14 +223,14 @@ class Trajectory:
         reaction_range = (self.ts > 0) & (self.ts < REACT_WINDOW)
         vel_reaction_window = vel[reaction_range[:-1]]
 
-        self.vmax = max(vel_reaction_window)
+        self.vmax = np.nanmax(vel_reaction_window)
         self.vmax_index = np.where(vel == self.vmax)
         self.t_vmax = self.ts[self.vmax_index]
         self.y_vmax = ys[self.vmax_index]
 ## CAlculate stabilization (proxy for peak)
 ## NOTE: This is pretty unstable. What if it pauses as it's going up? 
 ## I could maybe fix this by smoothing it a lot. But max height might work better
-        neg_vel = np.where(vel <= 0)[0]
+        neg_vel = np.where(np.logical_and(vel <= 0,~np.isnan(vel)))[0]
         self.stable_vel_index = neg_vel[neg_vel > self.vmax_index[0]][0]
         self.t_stable_vel = self.ts[self.stable_vel_index]
 ## Peak Height
@@ -260,7 +271,7 @@ class Trajectory:
     #def center_data(self):
         
     def build_vectors(self):
-        all_angles,_ = self.define_angles()
+        #all_angles,_ = self.define_angles()
         all_distances,_ = self.define_distances()
         return all_distances,all_angles
          
@@ -280,6 +291,7 @@ class Trajectory:
                 pairwise_matrix[t] = cdist(data[t],data[t])
         return all_distances,pairwise_matrix
 
+## Need to revise this for new 3d points :/ 
     def define_angles(self):
         eye_center = np.mean([self.data[:,4],self.data[:,12]],0)
         shoulder_center = np.mean([self.data[:,5],self.data[:,13]],0)
@@ -471,8 +483,8 @@ if __name__ == "__main__":
 ## Read through all the postures and build a list of all of them
     print('here we go!')
     posture_dir = '/data/birds/postures/'
-    birdview_dir = 'birdview-2019/'
-    birdview2_dir = 'birdview2-2019/'
+    birdview_dir = 'birdview-2018/'
+    birdview2_dir = 'birdview2-2018/'
 
     birdview_list = sorted(os.listdir(posture_dir + birdview_dir))
     birdview2_list = sorted(os.listdir(posture_dir + birdview2_dir))
@@ -497,15 +509,23 @@ if __name__ == "__main__":
             if '.wav.mp4' in posture_list[s]:
                 print(s,': working on',posture_list[s])
                 trimmed_path = posture_list[s].split('.')[0]
+                if i == 0 or i == 1:
+                    trimmed_path = trimmed_path.split('_')[0] ## Trim off the song name
                 file_path = posture_dir + bird_dirs[i] + trimmed_path + '/pred_keypoints_3d.npy'
+
                 if not os.path.exists(file_path):
                     print('no 3d keypoints for',file_path)
                     print('skipping to next posture...')
                     continue
 
                 print('making seq for',file_path)
-                Seq = Trajectory(file_path,index=count)
-                if Seq.posture == 0 or "floor" in Seq.notes:
+                try:
+                    Seq = Trajectory(file_path,index=count)
+                except:
+                    print('Seq failed for some reason, moving on')
+                    continue
+                if False:
+                #if Seq.posture == 0 or "floor" in Seq.notes:
                     
                     print('Floor or non-posture, but I can do it!')
                     print('Saving it to CrapSeqs')

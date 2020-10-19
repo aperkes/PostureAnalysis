@@ -8,7 +8,7 @@ from pymer4.models import Lmer
 
 if True:
     birdview_df = pd.read_csv('./posture_df.csv')
-
+    birdview_df = birdview_df.dropna(subset=['Latency','Duration','ResponseRate','AvgPotency','Bird','Song'])
     model = Lmer('Latency ~ AvgPotency + ResponseRate + (1|Bird) + (1|Song)',data=birdview_df)
 
     print(model.fit())
@@ -16,10 +16,12 @@ if True:
     model_dur = Lmer('Duration ~ AvgPotency + ResponseRate + (1|Bird) + (1|Song)',data=birdview_df)
     print(model_dur.fit())
 
-
+if False:
+    model_lat = Lmer('Latency ~ Block + AvgPotency + ResponseRate + (1|Bird) + (1|Song)',data=birdview_df)
+    print(model_lat.fit())
 ### Print Durations from large group:
 
-if True:
+if False:
     durations_df = pd.read_csv('./durations_df.csv')
 
     model_dur2 = Lmer('LogDuration ~ AvgPotency + ResponseRate + (1|Bird) + (1|Song) + (1|Aviary)',data=durations_df)
@@ -34,7 +36,7 @@ if True:
     model_song = Lmer('S1_ResponseRate ~ All_ResponseRate + (1|Aviary) + (1|SongSet) + (1|Block)',data=song_df)
     print(model_song.fit())
 
-if True:
+if False:
     block_df = pd.read_csv('./block_df.csv')
     model_block = Lmer('Later_Rate ~ B1_Rate + (1|Aviary) + (1|SongSet) + (1|Song)',data=block_df)
     print(model_block.fit())
@@ -44,7 +46,7 @@ if True:
     model_bf = Lmer('Later_Rate~B1_Posture + AvgPotency + (1|Bird) + (1|Song) + (1|Aviary) + (1|SongSet)',data=f_block_df)
     print(model_bf.fit())
 
-if True:
+if False:
     csd_df = pd.read_csv('./csd_df.csv')
     model_csd = Lmer('Partial_CSD ~ AvgPotency + (1|Bird) + (1|Block) + (1|Song) + (1|Aviary) + (1|SongSet)',data=csd_df) 
     print(model_csd.fit())
@@ -59,7 +61,7 @@ if True:
     model_sb = Lmer('Posture~ResponseRate + AvgPotency + (1|Bird) + (1|Block) + (1|Song) + (1|Aviary) + (1|SongSet)',data=song_bird_df)
     print(model_sb.fit())
 
-if True:
+if False:
     max_song_df = pd.read_csv('./max_song_df.csv')
     model_ms = Lmer('Posture~ResponseRate + AvgPotency + (1|Bird) + (1|Block) + (1|Song) + (1|Aviary) + (1|SongSet)',data=max_song_df)
     print(model_ms.fit())
