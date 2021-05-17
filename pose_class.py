@@ -233,9 +233,10 @@ class Trajectory:
         neg_vel = np.where(np.logical_and(vel <= 0,~np.isnan(vel)))[0]
         self.stable_vel_index = neg_vel[neg_vel > self.vmax_index[0]][0]
         self.t_stable_vel = self.ts[self.stable_vel_index]
+        self.stable_height = ys[stable_vel_index]
 ## Peak Height
         peak_range = (self.ts > self.t_vmax) & (self.ts < REACT_WINDOW+self.t_vmax)
-        self.peak_height = max(ys[peak_range])
+        self.peak_height = np.nanmax(ys[peak_range])
         self.peak_height_index = np.where(ys == self.peak_height)
         self.t_peak = self.ts[self.peak_height_index]
 ## Refraction
@@ -252,6 +253,7 @@ class Trajectory:
         refraction_value = refraction_range[refraction_point]
         self.refraction_index = np.where(ys == refraction_value)
         
+        self.mean_height = np.nanmean(ys[peak_range[0]:self.refraction_index])
         self.t_refraction = self.ts[self.refraction_index]
 
 ## Duration
@@ -503,7 +505,7 @@ if __name__ == "__main__":
     for i in range(2):
         if i == 0:
             pass
-            #continue
+            continue
         posture_list = bird_list[i]
         for s in range(len(posture_list)):
             if '.wav.mp4' in posture_list[s]:
