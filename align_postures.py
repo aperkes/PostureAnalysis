@@ -1,5 +1,10 @@
 #! /usr/bin/env python
 
+## This isn't actually used for the manuscript at all, but 
+# I think it's interesting enough that it's here if you want to play with
+# Basically you would want a time aligned comparison
+# But this sort of fell by the wayside in favor of the PCA business
+
 import os
 from fastdtw import fastdtw
 from fastdtw import dtw
