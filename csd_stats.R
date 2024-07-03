@@ -7,19 +7,88 @@ library('ggplot2')
 library('DHARMa')
 library('MuMIn')
 
-setwd("~/Documents/Scripts/PostureAnalysis")
+#setwd("~/Documents/Scripts/PostureAnalysis")
+setwd("~/Downloads")
 #csd_data <- read.csv("./full_df2.csv")
-csd_data <- read.csv("./full_df3.csv")
+csd_data.raw <- read.csv("./full_df3.csv")
 
-csd_data$PostureSum <- 0
-aggregate(csd_data$Posture,by=list(Category=csd_data$BirdID),FUN=sum)
+csd_data.raw$PostureSum <- 0
+aggregate(csd_data.raw$Posture,by=list(Category=csd_data.raw$BirdID),FUN=sum)
 
-filtered_csd <- csd_data %>%
+filtered_csd <- csd_data.raw %>%
   group_by(BirdID) %>%
   filter(sum(Posture) > 5)
 aggregate(filtered_csd$Posture,by=list(Category=filtered_csd$BirdID),FUN=sum)
 
+
 csd_data <- filtered_csd
+
+## Check whether songs differ from random: 
+csd_data.set0 <- csd_data[csd_data$SongSet == 0,]
+csd_data.set0 <- csd_data.set0[csd_data.set0$Aviary != 0,]
+
+song_counts <- aggregate(csd_data.set0$Posture,by=list(Category=csd_data.set0$SongID),FUN=sum)
+res.chi <- chisq.test(song_counts$x)
+print(res.chi)
+
+## Get some summary stats on song preference: 
+song_means <- csd_data.set0 %>%
+  group_by(SongID,Aviary) %>%
+  summarize(mean_pot = mean(Posture),std_pot = sd(Posture),pres_count = length(Posture))
+
+print(song_means)
+csd_data.set0[csd_data.set0$Aviary == 1,]
+
+## Consistency of preference: 
+song_means.birds <- csd_data.set0 %>%
+  group_by(SongID,BirdID,Aviary) %>%
+  summarize(mean_pot = mean(Posture),std_pot = sd(Posture),pres_count = length(Posture))
+
+aviaries <- unique(song_means$Aviary)
+
+corrs.aviary <- c()
+corrs.birds <- c()
+for (a in aviaries) {
+  birds <- unique(song_means.birds[song_means.birds$Aviary == a,]$BirdID)
+  song_means.sub <- song_means.birds[song_means.birds$Aviary == a,]
+  birds <- unique(song_means.sub$BirdID)
+  for (i in birds) {
+    for (j in birds) {
+      if (i == j) next
+      print(c(i,j))
+      res.cor <- cor.test(x=song_means.sub[song_means.sub$BirdID == i,]$mean_pot,
+                          y=song_means.sub[song_means.sub$BirdID == j,]$mean_pot,method='pearson')
+      print(res.cor$estimate)
+      corrs.birds <- c(corrs.birds,res.cor$estimate)
+    }
+  }
+  for (b in aviaries) {
+
+    if (a == b) next
+    print(c(a,b))
+    res.cor <- cor.test(x=song_means[song_means$Aviary == a,]$mean_pot,y=song_means[song_means$Aviary == b,]$mean_pot,method='pearson')
+    print(res.cor$estimate)
+    corrs.aviary <- c(corrs.aviary,res.cor$estimate)
+    }
+  }
+print('Mean across-aviary pearsons R:')
+c(mean(corrs.aviary),sd(corrs.aviary) / sqrt(length(corrs.aviary)))
+
+print('Mean within-aviary pearsons R:')
+c(mean(corrs.birds),sd(corrs.birds) / sqrt(length(corrs.birds)))
+
+csd_data.raw.binary <- csd_data.raw
+csd_data.raw.binary[csd_data.raw.binary$Posture == 2,"Posture"] <- 0
+## Variation in response rate: 
+resp_rate.birds <- csd_data.raw.binary %>%
+  group_by(Bird,Block) %>%
+  summarize(blockRate = mean(Posture),presCount = length(Posture))
+
+resp_rate.overall <- csd_data.raw.binary %>%
+  group_by(Bird) %>%
+  summarize(birdRate = mean(Posture),presCount = length(Posture))
+
+
 #old_csd_data <- read.csv("~/Documents/Scripts/PostureAnalysis2/full_df.csv")
 #csd_data_ <- csd_data[order(csd_data$AvgPotency),]
 #old_csd_data_ <- old_csd_data[order(old_csd_data$AvgPotency),]
