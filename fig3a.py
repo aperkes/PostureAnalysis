@@ -8,8 +8,8 @@ paper_cmap = cm.get_cmap('viridis')
 ## Make data and plot figure 7a, Get durations,latencies by bird: 
 song_list = ['BDY','BOD','ND','LB','2M','DBR','GRG','WG','LNR','DMG']
 plot_bird_list = ['Y1','CB-Orange','PINK2','CB-Y2','CB-LB2','CB-Yellow','P1']
-simple_bird_list = ['B1-2018','B1-2019','B2-2018','B2-2019','B3-2019','B4-2019','B3-2018']
-#plot_bird_indices = [1,2,5,7,8,9,4]
+#simple_bird_list = ['B1-2018','B1-2019','B2-2018','B2-2019','B3-2019','B4-2019','B3-2018']
+simple_bird_list = ['B1-2018','B2-2018','B3-2018','B1-2019','B2-2019','B3-2019','B4-2019','B5-2019']
 
 plot_aviary_names = [
     '2018*',
@@ -22,31 +22,11 @@ plot_aviary_names = [
 ]
 
 
-base_h = 1.75
-top_h = 3.75
+base_l = 1.75
+top_l = 3.75
 
-
-if False:
-    print(plot_bird_list)
-    n_birds = len(plot_bird_list)
-    durations = np.array(data_array[:,:,:,2])
-
-    durations[data_key[:,:,:,2] == 0] = np.nan
-    durations[data_array[:,:,:,0] != 1] = np.nan
-    good_durations = durations[~np.isnan(durations)]
-
-    latencies = np.array(data_array[:,:,:,1])
-    latencies[data_key[:,:,:,2] == 0] = np.nan
-    latencies[data_array[:,:,:,0] != 1] = np.nan
-    good_latencies = latencies[~np.isnan(latencies)]
-    print('neg latencies:',np.sum(good_latencies <= 0))
-    good_latencies = good_latencies[good_latencies > 0]
-
-    bird_durations = [np.nan] * n_birds
-    bird_latencies = [np.nan] * n_birds
-
-## good_durations = a straight list of all durations (for the distribution)
-## bird_durations = nested lists of durations by bird
+base_d = .35
+top_d = .6
 ## Same for latency
 
 bird_df = pd.read_csv('./full_df3.csv')
@@ -61,6 +41,9 @@ good_latencies = good_latencies[good_latencies > 0]
 bird_durations = {}
 bird_latencies = {}
 a_list = []
+
+med_latencies = []
+
 for a in pd.unique(bird_df.Aviary):
     a_df = bird_df[bird_df.Aviary == a]
 
@@ -77,39 +60,29 @@ for a in pd.unique(bird_df.Aviary):
                 b_ = b
             bird_durations[b_] = b_durations.values
             a_list.append(a)
+
         b_latencies = b_df.Latency
         b_latencies = b_latencies[~np.isnan(b_latencies)]
         b_latencies = b_latencies[b_latencies > 0]
         if len(b_latencies) > 0:
             bird_latencies[b] = b_latencies.values
-
-if False:
-## Get durations and latencies by bird
-    for i in range(n_birds):
-        bird_name = plot_bird_list[i]
-        n = bird_dict[bird_name]
-        p_indices = np.logical_and(~np.isnan(data_array[n,:,:,2]),data_array[n,:,:,0] == 1)
-        crap_indices = data_key[n,:,:,2] == 0
-        bird_durations[i] = data_array[n,:,:,2][np.logical_and(p_indices,~crap_indices)]
-
-        bird_latencies[i] = data_array[n,:,:,1][np.logical_and(p_indices,~crap_indices)]
-        
-        bird_durations[i] = bird_durations[i][~np.isnan(bird_latencies[i])]
-        bird_latencies[i] = bird_latencies[i][~np.isnan(bird_latencies[i])]
+            med_latencies.append(np.mean(b_latencies.values))
 
 #fig,(ax1,ax2) = plt.subplots(1,2)
 fig,ax1 = plt.subplots()
 fig2,ax2 = plt.subplots()
 
 ## base_h defined above
-dur_heights = np.linspace(base_h,top_h,len(bird_durations.keys()))[::-1]
-lat_heights = np.linspace(base_h,top_h,len(bird_latencies.keys()))[::-1]
+dur_heights = np.linspace(base_d,top_d,len(bird_durations.keys()))[::-1]
+lat_heights = np.linspace(base_l,top_l,len(bird_latencies.keys()))[::-1]
+lat_heights = lat_heights[np.argsort(np.argsort(med_latencies))]
+
 dur_keys = list(bird_durations.keys())
 lat_keys = list(bird_latencies.keys())
 n_durs = len(dur_keys)
 n_lats = len(lat_keys)
-dur_widths = [.25] * n_durs
-lat_widths = [.25] * n_lats
+dur_widths = [(top_d - base_d) / n_durs] * n_durs
+lat_widths = [(top_l - base_l) / n_lats] * n_lats
 
 
 #bird_color_values = [0.6,0.0,0.7,.3,.2,.1,.65,0,0,0]
@@ -134,13 +107,10 @@ for d in range(len(dur_keys)):
     ax2.scatter(bird_durations[k],ys_dur,alpha=.5,marker='.',color=aviary_colors[d])
 
     mark_h = .5
-    #ax1.scatter(np.nanmean(bird_latencies[s]),mark_h,marker='v',color=bird_colors[i])
-    #ax2.scatter(np.nanmean(bird_durations[s]),mark_h,marker='v',color=bird_colors[i])
 
 for l in range(len(lat_keys)):
     k = lat_keys[l]
     ys_lat = np.array([[lat_heights[l]] * len(bird_latencies[k])])
-    #ys_lat = dict(zip([list(bird_latencies.keys()),lat_heights]))
                       
     jitter_lat = (np.random.rand(len(ys_lat)) - .5) * .25
 
@@ -177,10 +147,13 @@ ax1.set_ylim([0,4.0])
 
 ax1.set_yticks(np.arange(0,2))
 ax1.set_yticklabels([0,1])
+
+ax2.set_yticks(np.linspace(0,0.30,3))
+ax2.set_yticklabels([0,0.15,0.3])
 #ax1.set_yticklabels(np.arange(0,10))
+ax2.set_xlim([-1,15.5])
+ax2.set_ylim(0,0.75)
 """
-ax2.set_xlim([-1,15])
-ax2.set_ylim(0,4)
 ax2.set_yticks(np.arange(0,2))
 ax2.set_yticklabels([0,1])
 ax2.set_ylabel('   ')
