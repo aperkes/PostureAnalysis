@@ -7,8 +7,8 @@ library('ggplot2')
 library('DHARMa')
 library('MuMIn')
 
-#setwd("~/Documents/Scripts/PostureAnalysis")
-setwd("~/Downloads")
+setwd("~/Documents/Scripts/PostureAnalysis")
+#setwd("~/Downloads")
 #csd_data <- read.csv("./full_df2.csv")
 csd_data.raw <- read.csv("./full_df3.csv")
 
@@ -77,6 +77,7 @@ c(mean(corrs.aviary),sd(corrs.aviary) / sqrt(length(corrs.aviary)))
 print('Mean within-aviary pearsons R:')
 c(mean(corrs.birds),sd(corrs.birds) / sqrt(length(corrs.birds)))
 
+
 csd_data.raw.binary <- csd_data.raw
 csd_data.raw.binary[csd_data.raw.binary$Posture == 2,"Posture"] <- 0
 ## Variation in response rate: 
@@ -105,6 +106,7 @@ lat_data <- lat_data[lat_data$Latency > 0,]
 lat_data['LogLatency'] <- log(lat_data['Latency'])
 lat_data['SqrtLatency'] <- sqrt(lat_data['Latency'])
 plot(lat_data$Latency,lat_data$AvgPotency)
+length(lat_data$Latency)
 mean(lat_data$Latency)
 sd(lat_data$Latency)
 resLat.aov <- aov(Latency ~ Bird, data = lat_data)
@@ -112,24 +114,37 @@ summary(resLat.aov)
 
 latencyModel.lmer <- lmer(formula = Latency ~ AvgPotency + BlockResponseRate + 
                               (1|Bird) + (1|Song) + (1|Block),data=lat_data)
-latencyModel.log <- lmer(formula = LogLatency ~ AvgPotency + BlockResponseRate + 
-                            (1|Bird) + (1|Song) + (1|Block),data=lat_data)
-latencyModel.sqrt <- lmer(formula = SqrtLatency ~ AvgPotency + BlockResponseRate + 
-                           (1|Bird) + (1|Song) + (1|Block),data=lat_data)
+
+
 latencyModel.lm <- lm(formula = Latency ~ AvgPotency + BlockResponseRate,data=lat_data)
 latencyModel.lmer2 <- lmer(formula = Latency ~ AvgPotency + BlockResponseRate + 
                              (1|Block) + (1|Song),data=lat_data)
 summary(latencyModel.lmer)
-summary(latencyModel.lm)
-AIC(latencyModel.lmer,latencyModel.lm)
+confint(latencyModel.lmer)
 
-simulationOutput <- simulateResiduals(fittedModel = latencyModel.lm, plot = F)
-plot(simulationOutput)
+AIC(latencyModel.lmer,latencyModel.lm,latencyModel.lmer2)
 
+## Tried these out while trying to fix under-dispersion, but it didn't actually help
+latencyModel.log <- lmer(formula = LogLatency ~ AvgPotency + BlockResponseRate + 
+                           (1|Bird) + (1|Song) + (1|Block),data=lat_data)
+latencyModel.sqrt <- lmer(formula = SqrtLatency ~ AvgPotency + BlockResponseRate + 
+                            (1|Bird) + (1|Song) + (1|Block),data=lat_data)
+
+### DHARMa shows that the mixed model is under-dispersed, suggesting low-power
 simulationOutput <- simulateResiduals(fittedModel = latencyModel.lmer, plot = F)
 plot(simulationOutput)
+testDispersion(simulationOutput,alternative='less')
 testDispersion(simulationOutput)
 
+## While low power isn't a real concern here, the simpler model is evenly dispersed
+# And has qualitatively similar results
+simulationOutput <- simulateResiduals(fittedModel = latencyModel.lm, plot = F)
+plot(simulationOutput)
+testDispersion(simulationOutput,alternative='two.sided')
+summary(latencyModel.lm)
+
+## Additional residual plots, if you want that sort of thing. 
+if (FALSE) {
 plot(fitted(latencyModel.lmer),resid(latencyModel.lmer))
 qqnorm(resid(latencyModel.lmer))
 qqline(resid(latencyModel.lmer))
@@ -137,10 +152,11 @@ qqline(resid(latencyModel.lmer))
 plot(fitted(latencyModel.lm),resid(latencyModel.lm))
 qqnorm(resid(latencyModel.lm))
 qqline(resid(latencyModel.lm))
+}
 
 ## Generate plots for Latency plots
 
-lat_overlay_pot <- ggpredict(latencyModel,terms="AvgPotency")
+lat_overlay_pot <- ggpredict(latencyModel.lmer,terms="AvgPotency")
 p.lat.pot <- plot(lat_overlay_pot,add.data = TRUE) + 
   theme_classic() + 
   theme(legend.position = "none",
@@ -155,7 +171,7 @@ p.lat.pot
 ggsave(file='./figures/f3b.png',plot=p.lat.pot,dpi=300,bg = "transparent")
 
 
-lat_overlay_rsp <- ggpredict(latencyModel,terms="BlockResponseRate")
+lat_overlay_rsp <- ggpredict(latencyModel.lmer,terms="BlockResponseRate")
 p.lat.resp <- plot(lat_overlay_rsp,add.data = TRUE) + 
   theme_classic() + 
   theme(legend.position = "none",
@@ -178,16 +194,33 @@ dur_data <- dur_data[complete.cases(dur_data),]
 dur_data <- dur_data[dur_data$Posture == 1,]
 dur_data <- dur_data[dur_data$Duration> 0,]
 
+length(dur_data$Duration)
+length(unique(dur_data$Bird))
+length(unique(dur_data$Aviary))
 mean(dur_data$Duration)
 sd(dur_data$Duration)
 resDur.aov <- aov(Duration ~ Bird, data = dur_data)
 summary(resDur.aov)
 
-durationModel <- lmer(formula = Duration ~ AvgPotency + BlockResponseRate + 
+## I got these in bash terminal: for i in ls *; do ffprobe -i $i -show_entries format=duration -v quiet -of csv="p=0"; done
+song_durations <- c(1.054833,
+                    1.064333,
+                    1.286625,
+                    0.999125,
+                    1.281458,
+                    1.149958,
+                    0.924708,
+                    1.101667,
+                    1.121792,
+                    1.142313)
+mean(song_durations)
+sd(song_durations)
+
+durationModel.lmer <- lmer(formula = Duration ~ AvgPotency + BlockResponseRate + 
                         (1|Bird) + (1|Song) + (1|Block) + (1|Aviary),data=dur_data)
 
-summary(durationModel)
-simulationOutput <- simulateResiduals(fittedModel = durationModel, plot = F)
+summary(durationModel.lmer)
+simulationOutput <- simulateResiduals(fittedModel = durationModel.lmer, plot = F)
 plot(simulationOutput)
 
 #dur_overlay_pot <- ggpredict(durationModel,terms="AvgPotency")
@@ -195,41 +228,11 @@ plot(simulationOutput)
 
 #dur_overlay_rsp <- ggpredict(durationModel,terms="BlockResponseRate")
 #plot(dur_overlay_rsp,add.data = TRUE)
-plot(fitted(durationModel),resid(durationModel))
+plot(fitted(durationModel.lmer),resid(durationModel.lmer))
 
 ## Based on the residual plot above and the data content, a Gamma distribution 
 #   seems much more appropriate
-dur_data['LogDuration'] <- log(dur_data['Duration'])
-dur_data['SqrtDuration'] <- sqrt(dur_data['Duration'])
 
-
-duration.model.sqrt <- lm(formula = SqrtDuration ~ AvgPotency + BlockResponseRate,data=dur_data)
-simulationOutput <- simulateResiduals(fittedModel = duration.model.sqrt, plot = F)
-plot(simulationOutput)
-summary(duration.model.sqrt)
-
-duration.gamma.sqrt <- glmer(formula = SqrtDuration ~ AvgPotency + BlockResponseRate + 
-                         (1|Bird) + (1|Song) + (1|Block) + (1|Aviary), 
-                       family=Gamma(link="log"), data=dur_data)
-simulationOutput <- simulateResiduals(fittedModel = duration.gamma.sqrt, plot = F)
-plot(simulationOutput)
-
-duration.model.glm <- glm(formula = Duration ~ AvgPotency + BlockResponseRate,
-                         data=dur_data,family=Gamma(link="log"))
-simulationOutput <- simulateResiduals(fittedModel = duration.model.log, plot = F)
-plot(simulationOutput)
-summary(duration.model.glm)
-
-duration.model.log <- lm(formula = LogDuration ~ AvgPotency + BlockResponseRate,data=dur_data)
-summary(duration.model.log)
-
-
-
-simulationOutput <- simulateResiduals(fittedModel = duration.model.log, plot = F)
-plot(simulationOutput)
-
-duration.model.lm <- lm(formula = Duration ~ AvgPotency + BlockResponseRate,data=dur_data)
-summary(duration.model.lm)
 
 durationGamma <- glmer(formula = Duration ~ AvgPotency + BlockResponseRate + 
                            (1|Bird) + (1|Song) + (1|Block) + (1|Aviary), 
@@ -238,11 +241,47 @@ summary(durationGamma)
 plot(fitted(durationGamma),resid(durationGamma)) ## Still get bands, but I believe that's ok for Gamma 
 
 simulationOutput <- simulateResiduals(fittedModel = durationGamma, plot = F)
+testDispersion(simulationOutput,alternative='less')
 plot(simulationOutput)
 
-AIC(durationGamma,duration.model.glm,duration.model.lm,duration.model.log,duration.model.sqrt)
-### Generate duration plots
-summary(duration.model.sqrt)
+## I tried all sorts of things to deal with underdispersion, but 
+##    the gamma distribution seems most appropriate overall
+if (FALSE) {
+  dur_data['LogDuration'] <- log(dur_data['Duration'])
+  dur_data['SqrtDuration'] <- sqrt(dur_data['Duration'])
+  
+  
+  duration.model.sqrt <- lm(formula = SqrtDuration ~ AvgPotency + BlockResponseRate,data=dur_data)
+  simulationOutput <- simulateResiduals(fittedModel = duration.model.sqrt, plot = F)
+  plot(simulationOutput)
+  summary(duration.model.sqrt)
+  
+  
+  duration.gamma.sqrt <- glmer(formula = SqrtDuration ~ AvgPotency + BlockResponseRate + 
+                                 (1|Bird) + (1|Song) + (1|Block) + (1|Aviary), 
+                               family=Gamma(link="log"), data=dur_data)
+  simulationOutput <- simulateResiduals(fittedModel = duration.gamma.sqrt, plot = F)
+  plot(simulationOutput)
+  
+  duration.model.glm <- glm(formula = Duration ~ AvgPotency + BlockResponseRate,
+                            data=dur_data,family=Gamma(link="log"))
+  simulationOutput <- simulateResiduals(fittedModel = duration.model.log, plot = F)
+  plot(simulationOutput)
+  summary(duration.model.glm)
+  
+  duration.model.log <- lm(formula = LogDuration ~ AvgPotency + BlockResponseRate,data=dur_data)
+  summary(duration.model.log)
+  
+  simulationOutput <- simulateResiduals(fittedModel = duration.model.log, plot = F)
+  plot(simulationOutput)
+  
+  duration.model.lm <- lm(formula = Duration ~ AvgPotency + BlockResponseRate,data=dur_data)
+  summary(duration.model.lm)
+  
+  AIC(durationGamma,duration.model.glm,duration.model.lm,duration.model.log,duration.model.sqrt)
+  ### Generate duration plots
+  summary(duration.model.sqrt)
+}
 
 dur_overlay_pot <- ggpredict(durationGamma,terms="AvgPotency")
 
@@ -273,7 +312,112 @@ p.dur.resp <- plot(dur_overlay_rsp,add.data = TRUE) +
 p.dur.resp
 ggsave(file='./figures/f4c.png',plot=p.dur.resp,dpi=300,bg = "transparent")
 
+
+### VELCOITY AND HEIGHT ####
+traj_data <- subset(csd_data,select=c("Posture","MaxVelocity","PeakHeight","AvgPotency","BVPotency","Prefix","BlockResponseRate","Bird","Block","Song","Aviary"))
+traj_data <- traj_data[complete.cases(traj_data),]
+traj_data <- traj_data[traj_data$Posture == 1,]
+
+length(traj_data[traj_data$Posture == 1,]$Posture)
+length(unique(traj_data$Bird))
+plot(traj_data$MaxVelocity,traj_data$BVPotency)
+
+traj_data$LogMaxVel <- log(traj_data$MaxVelocity)
+hist(traj_data$LogMaxVel)
+
+## Log transformation normalizes Velocities and improves residual, although Dharma still complains. 
+velModel <- lmer(formula = LogMaxVel ~ AvgPotency + BlockResponseRate + (1|Bird),data=traj_data)
+summary(velModel)
+
+hist(traj_data$MaxVelocity)
+plot(fitted(velModel),resid(velModel)) 
+plot(traj_data$BVPotency,traj_data$MaxVelocity)
+simulationOutput <- simulateResiduals(fittedModel = velModel, plot = F)
+plot(simulationOutput)
+
+## Should block be a random effect here? 
+peak_model <- lmer(formula = PeakHeight ~ BVPotency + BlockResponseRate + (1|Block) + (1|Bird),data=traj_data)
+#peak_model <- lm(formula = PeakHeight ~ BVPotency,data=traj_data)
+
+summary(peak_model)
+
+
+### PARTIAL POSTURES ####
+
+## This is the proportion for the entire dataset, (which wasn't necessarily focused on partials)
+birdview_data = csd_data[csd_data$Aviary < 2,]
+csd_counts <- table(csd_data$Posture)
+partial_prop <- csd_counts[3] / sum(csd_counts)
+full_prop <- csd_counts[2] / sum(csd_counts)
+print(c(partial_prop,full_prop))
+
+## This is the proportion for just our data, which was very careful with partials
+table(birdview_data$Posture)
+n_playbacks <- length(birdview_data$Posture)
+n_csd <- length(which(birdview_data$Posture == 1))
+n_partials <- length(which(birdview_data$Posture == 2))
+
+print(c("proportion of full CSD:",n_csd / n_playbacks))
+print(c("proportion of partial CSDs:",n_partials / n_playbacks))
+
+
+## Check whether latency is different for partials vs full postures
+latPart_data <- subset(birdview_data,select=c("Posture","Latency","AvgPotency","BlockResponseRate","Bird","Block","Song"))
+latPart_data <- latPart_data[latPart_data$Posture > 0,]
+latPart_data <- latPart_data[complete.cases(latPart_data),]
+latPart_data[latPart_data$Posture == 2,"Posture"] = 0
+partialLatModel <- lmer(formula = Latency ~ Posture + AvgPotency + BlockResponseRate +
+                          (1|Bird) + (1|Song) + (1|Block),data=latPart_data)
+
+
+summary(partialLatModel)
+
+print('mean,sd for full posture:')
+mean(latPart_data[latPart_data$Posture == 1,]$Latency)
+sd(latPart_data[latPart_data$Posture == 1,]$Latency)
+
+print('mean,sd for partial posture:')
+mean(latPart_data[latPart_data$Posture == 0,]$Latency)
+sd(latPart_data[latPart_data$Posture == 0,]$Latency)
+
+plot(fitted(partialLatModel),resid(partialLatModel))
+qqnorm(resid(partialLatModel))
+qqline(resid(partialLatModel))
+
+partLat_overlay_pot <- ggpredict(partialLatModel,terms="Posture")
+plot(partLat_overlay_pot,add.data = TRUE)
+
+## Check if theres a potency effect for latency within partials
+latPart_data.partials <- latPart_data[latPart_data$Posture == 0,]
+partialModel.posture <- lmer(formula = Latency ~ AvgPotency + BlockResponseRate + (1|Bird),data=latPart_data.partials)
+summary(partialModel.posture)
+
+## Check potency of songs eliciting partial CSD: 
+
+mean(birdview_data[birdview_data$Posture == 0,]$AvgPotency)
+mean(birdview_data[birdview_data$Posture == 1,]$AvgPotency)
+mean(birdview_data[birdview_data$Posture == 2,]$AvgPotency)
+
+## Check whether songs that get postures shift with threshold
+partial_data <- csd_data[csd_data$Posture == 2,]
+partial_data <- subset(partial_data,select=c("Posture","AvgPotency","BlockResponseRate","Bird","Block","Song","Aviary"))
+
+partial_data <- partial_data[complete.cases(partial_data),]
+
+
+partialModel <- lmer(formula = AvgPotency ~ BlockResponseRate +
+                       (1|Bird) + (1|Song) + (1|Block) + (1|Aviary),data=partial_data)
+summary(partialModel)
+
+plot(fitted(partialModel),resid(partialModel))
+qqnorm(resid(partialModel))
+qqline(resid(partialModel))
+
+par_overlay_rsp <- ggpredict(partialModel,terms="BlockResponseRate")
+plot(par_overlay_rsp,add.data = TRUE)
+
 ### PREDICTING POSTURE ####
+
 
 ## Run average potency model, testing specifically for whether there's a time effect
 csd_binary <- csd_data
@@ -333,8 +477,8 @@ csd.model.both.slope <- glmer(formula = Posture ~ AvgPotency + BlockResponseRate
                                                       family=binomial)
 
 
-DIC(csd.model.pot, csd.model.block, csd.model.simple,csd.model.interaction,csd.model.simple.resp,csd.model.interaction.resp,
-    csd.model.aviary,csd.model.block.slope,csd.model.pot.slope,csd.model.both.slope,csd.model.pot.slope.interaction,csd.model.pot.Aviary)
+#DIC(csd.model.pot, csd.model.block, csd.model.simple,csd.model.interaction,csd.model.simple.resp,csd.model.interaction.resp,
+#    csd.model.aviary,csd.model.block.slope,csd.model.pot.slope,csd.model.both.slope,csd.model.pot.slope.interaction,csd.model.pot.Aviary)
 
 AIC(csd.model.lm,csd.model.lm2,csd.model.lm3,csd.model.pot, csd.model.block, csd.model.simple,csd.model.interaction,csd.model.simple.resp,csd.model.interaction.resp,
     csd.model.aviary,csd.model.block.slope,csd.model.pot.slope,csd.model.both.slope,csd.model.pot.slope.interaction,csd.model.pot.Aviary)
@@ -500,71 +644,6 @@ goodModel <-glmer(formula = Posture ~ AvgPotency * BlockResponseRate +
 summary(goodModel)
 interact_plot(goodModel,modxvals=c(0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9),pred=BlockResponseRate,modx=AvgPotency)
 
-### VELCOITY AND HEIGHT ####
-traj_data <- subset(csd_data,select=c("Posture","MaxVelocity","PeakHeight","AvgPotency","BVPotency","Prefix","BlockResponseRate","Bird","Block","Song","Aviary"))
-traj_data <- traj_data[complete.cases(traj_data),]
-traj_data <- traj_data[traj_data$Posture == 1,]
-
-plot(traj_data$MaxVelocity,traj_data$BVPotency)
-
-velModel <- lmer(formula = MaxVelocity ~ AvgPotency + BlockResponseRate + (1|Bird),data=traj_data)
-summary(velModel)
-
-hist(traj_data$MaxVelocity)
-plot(fitted(velModel),resid(velModel)) 
-plot(traj_data$BVPotency,traj_data$MaxVelocity)
-
-## Should block be a random effect here? 
-peak_model <- lmer(formula = PeakHeight ~ BVPotency + BlockResponseRate + (1|Block) + (1|Bird),data=traj_data)
-#peak_model <- lm(formula = PeakHeight ~ BVPotency,data=traj_data)
-
-summary(peak_model)
-
-### PARTIAL POSTURES ####
-birdview_data = csd_data[csd_data$Aviary < 2,]
-table(csd_data$Posture)
-table(birdview_data$Posture)
-n_playbacks <- length(birdview_data$Posture)
-n_csd <- length(which(birdview_data$Posture == 1))
-n_partials <- length(which(birdview_data$Posture == 2))
-
-print(c("proportion of full CSD:",n_csd / n_playbacks))
-print(c("proportion of partial CSDs:",n_partials / n_playbacks))
-
-## Check whether songs that get postures shift with threshold
-partial_data <- csd_data[csd_data$Posture == 2,]
-partial_data <- subset(partial_data,select=c("Posture","AvgPotency","BlockResponseRate","Bird","Block","Song","Aviary"))
-
-partial_data <- partial_data[complete.cases(partial_data),]
-
-partialModel <- lmer(formula = AvgPotency ~ BlockResponseRate +
-                       (1|Bird) + (1|Song) + (1|Block) + (1|Aviary),data=partial_data)
-summary(partialModel)
-
-plot(fitted(partialModel),resid(partialModel))
-qqnorm(resid(partialModel))
-qqline(resid(partialModel))
-
-par_overlay_rsp <- ggpredict(partialModel,terms="BlockResponseRate")
-plot(par_overlay_rsp,add.data = TRUE)
-
-## Check whether latency is different for partials vs full postures
-latPart_data <- subset(birdview_data,select=c("Posture","Latency","AvgPotency","BlockResponseRate","Bird","Block","Song"))
-latPart_data <- latPart_data[latPart_data$Posture > 0,]
-latPart_data <- latPart_data[complete.cases(latPart_data),]
-latPart_data[latPart_data$Posture == 2,"Posture"] = 0
-partialLatModel <- lmer(formula = Latency ~ Posture + AvgPotency + BlockResponseRate +
-                          (1|Bird) + (1|Song) + (1|Block),data=latPart_data)
-                                                
-
-summary(partialLatModel)
-plot(fitted(partialLatModel),resid(partialLatModel))
-qqnorm(resid(partialLatModel))
-qqline(resid(partialLatModel))
-
-partLat_overlay_pot <- ggpredict(partialLatModel,terms="Posture")
-plot(partLat_overlay_pot,add.data = TRUE)
-
 ### PRELIMINARY WHISTLE COMPARISON ####
 song_set <- c("BDY","LB","BDY-","LB-")
 
@@ -603,25 +682,60 @@ qqnorm(resid(whistleDurModel))
 qqline(resid(whistleDurModel))
 
 
+### Supplemental Figures! 
 
-## Pairwise correlation is performed in a python script (Sfigure1.py)
+## Supplemental Figure One: 
+csd_binary.blockMeans <- aggregate(csd_binary.clean$Posture, by = list(csd_binary.clean$Bird,csd_binary.clean$Block), FUN = mean)
 
 
-### OLD LATENCY ####
-## An initial pre-print had a significant result for Latency ~ RespRate
-# The biggest reason was that I had accidentally included the playback when 
-# calculating the block-average. There were also slight differences in the 
-# input data, including missing a large group of postures. 
-# The current approach is statistically more sound, more straightforward
-# and much easier to check, and I am more confident it is correct, 
-# But you can look at the old data here. 
+df_summary <- csd_binary.clean %>%
+  group_by(Aviary, Bird,Block) %>%
+  summarize(BlockResponsivity = mean(Posture, na.rm = TRUE)) 
+csd_binary.ranks <- left_join(csd_binary.clean,df_summary,by=c('Aviary','Bird','Block'))
 
-# This only matters if you think p=0.04 and p=0.07 are substantively different results
-old_data <- read.csv("~/Documents/Scripts/AnalyzePosture/posture_df5.csv")
+df_summary <- csd_binary.ranks %>%
+  group_by(Aviary) %>%
+  summarize(GroupResponsivity = mean(BlockResponsivity,na.rm=TRUE)) %>%
+  mutate(GroupsRank = rank(desc(GroupResponsivity),ties.method='first'))
 
-old_lat <- subset(old_data,select=c("Latency","AvgPotency","ResponseRate","Bird"))
-old_lat <- old_lat[complete.cases(old_lat),]
-old_lat <- old_lat[old_lat$Latency> 0,]
-library("nlme")
-oldLatencyModel <- lme(Latency ~ AvgPotency + ResponseRate,random=~1|Bird,data=old_lat)
-summary(oldLatencyModel)
+csd_binary.ranks <- left_join(csd_binary.ranks,df_summary,by=c('Aviary'))
+
+csd_binary.ranks
+df_summary <- csd_binary.ranks %>%
+  group_by(Aviary,Bird) %>%
+  summarize(BirdResponsivity = mean(Posture,na.rm=TRUE)) %>%
+  mutate(RankInGroup = rank(desc(BirdResponsivity),ties.method="first"))
+
+csd_binary.ranks <- left_join(csd_binary.ranks,df_summary,by=c("Aviary","Bird"))
+  
+csd_binary.ranks
+
+csd_binary.ranks$Order <- (csd_binary.ranks$GroupsRank -1) * 15 + csd_binary.ranks$RankInGroup
+
+my_plot <- csd_binary.ranks %>%
+  group_by(Bird,Block) %>%
+  ggplot(aes(x=Order,y=BlockResponsivity,group=Order)) + 
+  geom_boxplot() + 
+  labs(x = "Birds (grouped by and sorted within experiment)", y="Responsivity") + 
+  ggtitle("Variation in 2Responsivity") + 
+  theme_classic() + 
+  theme(legend.position = "none",
+        rect=element_rect(fill="transparent"),
+        panel.background=element_rect(fill="transparent"),
+        axis.line = element_line(size = 0.5, colour = "black"),
+        axis.ticks = element_line(colour = "black"),
+        axis.text = element_text(size = 12, colour = "black"),
+        axis.title = element_text(size = 14, face = "bold", colour = "black"),
+        plot.title = element_text(hjust = 0.5, size = 0)) 
+my_plot
+csd_binary.birdResponse <- csd_binary.ranks %>%
+  group_by(Bird,Block) %>%
+  summarise(Responsivity = mean(BlockResponsivity))
+csd_binary.birdResponse
+Resp.aov <- aov(BlockResponsivity ~ Bird, data = csd_binary.ranks)
+summary(Resp.aov)
+
+csd_binary[csd_binary$SongSet == 0,] %>%
+  group_by(Block) %>%
+  summarise(Responsivity = mean(BlockResponseRate),sdRespon = sd(BlockResponseRate))
+
