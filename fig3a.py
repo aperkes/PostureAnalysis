@@ -9,7 +9,7 @@ paper_cmap = cm.get_cmap('viridis')
 song_list = ['BDY','BOD','ND','LB','2M','DBR','GRG','WG','LNR','DMG']
 plot_bird_list = ['Y1','CB-Orange','PINK2','CB-Y2','CB-LB2','CB-Yellow','P1']
 #simple_bird_list = ['B1-2018','B1-2019','B2-2018','B2-2019','B3-2019','B4-2019','B3-2018']
-simple_bird_list = ['B1-2018','B2-2018','B3-2018','B1-2019','B2-2019','B3-2019','B4-2019','B5-2019']
+plot_bird_names = ['B1-2018','B2-2018','B3-2018','B1-2019','B2-2019','B3-2019','B4-2019','B5-2019']
 
 plot_aviary_names = [
     '2018*',
@@ -25,14 +25,15 @@ plot_aviary_names = [
 base_l = 1.75
 top_l = 3.75
 
-base_d = .35
-top_d = .6
+base_d = .30
+top_d = .70
 ## Same for latency
 
 bird_df = pd.read_csv('./full_df3.csv')
 all_durations = bird_df.Duration
 good_durations = all_durations[~np.isnan(all_durations)]
 good_durations = good_durations[good_durations > 0]
+good_durations_ = [] ## seperate approach
 
 all_latencies = bird_df.Latency
 good_latencies = all_latencies[~np.isnan(all_latencies)]
@@ -44,29 +45,57 @@ a_list = []
 
 med_latencies = []
 
+a_ = -1
+count = -1
+mDur_by_aviary = []
+dur_key = {}
+count_durations = []
+durations_by_aviary = []
 for a in pd.unique(bird_df.Aviary):
+    a_ += 1
+    
+    dur_key[a_] = {}
+    mDur_by_aviary.append([])
+    durations_by_aviary.append([])
+
     a_df = bird_df[bird_df.Aviary == a]
 
+    b_count = -1
     for b in pd.unique(a_df.BirdID):
-        
+        b_count += 1 
         b_df = a_df[a_df.BirdID == b]
         b_durations = b_df.Duration
         b_durations = b_durations[~np.isnan(b_durations)]
         b_durations = b_durations[b_durations > 0]
         if len(b_durations) > 0:
+            count += 1
             if b in bird_durations.keys():
                 b_ = '.'.join([b,str(a)])
             else:
                 b_ = b
             bird_durations[b_] = b_durations.values
+            count_durations.append(b_durations.values)
+            med_duration = np.nanmedian(b_durations.values)
+            good_durations_.extend(b_durations.values)
+            durations_by_aviary[a_].append(b_durations.values)
+            mDur_by_aviary[a_].append(med_duration)
             a_list.append(a)
+            dur_key[a_][b_count] = count
 
         b_latencies = b_df.Latency
         b_latencies = b_latencies[~np.isnan(b_latencies)]
         b_latencies = b_latencies[b_latencies > 0]
         if len(b_latencies) > 0:
             bird_latencies[b] = b_latencies.values
-            med_latencies.append(np.mean(b_latencies.values))
+            med_latencies.append(np.nanmedian(b_latencies.values))
+
+## First, Figure out the order of aviaries
+mDurs_per_aviary = [np.mean(a_meds) for a_meds in mDur_by_aviary]
+order_by_aviary = [np.argsort(a_meds) for a_meds in mDur_by_aviary]
+aviary_order = np.argsort(mDurs_per_aviary)
+
+## Sort all durations by aviary
+sorted_by_aviary = [order_by_aviary[a] for a in aviary_order]
 
 #fig,(ax1,ax2) = plt.subplots(1,2)
 fig,ax1 = plt.subplots()
@@ -90,9 +119,12 @@ bird_color_values = np.linspace(0,1,n_lats)
 bird_colors = [paper_cmap(v) for v in bird_color_values]
 
 #aviary_color_values = [.1,.2,.2,.3,.4,.5,.6]
-aviary_color_values = np.linspace(0,1,n_durs)
-aviary_colors = [paper_cmap(v) for v in aviary_color_values]
+duration_color_values = np.linspace(0,1,n_durs)
+duration_colors = [paper_cmap(v) for v in duration_color_values]
 
+n_avs = 7
+aviary_color_values = np.linspace(0,0.75,n_avs)
+aviary_colors = [paper_cmap(v) for v in aviary_color_values]
 
 for d in range(len(dur_keys)):
     k = dur_keys[d]
@@ -103,8 +135,8 @@ for d in range(len(dur_keys)):
     ys_dur = np.array([[dur_heights[d]] * len(bird_durations[k])])                  
     jitter_dur = (np.random.rand(len(ys_dur)) - .5) * .25
 
-    ys_dur = ys_dur + jitter_dur
-    ax2.scatter(bird_durations[k],ys_dur,alpha=.5,marker='.',color=aviary_colors[d])
+    ys_dur = ys_dur
+    #ax2.scatter(bird_durations[k],ys_dur,alpha=.5,marker='.',color=aviary_colors[d])
 
     mark_h = .5
 
@@ -114,20 +146,38 @@ for l in range(len(lat_keys)):
                       
     jitter_lat = (np.random.rand(len(ys_lat)) - .5) * .25
 
-    ys_lat = ys_lat + jitter_lat
-    ax1.scatter(bird_latencies[k],ys_lat,alpha=.5,marker='.',color=bird_colors[l]) #,label=simple_bird_list[l])
+    ys_lat = ys_lat # + jitter_lat
+    ax1.scatter(bird_latencies[k],ys_lat,alpha=.5,marker='.',color=bird_colors[l],label=plot_bird_names[l])
 
     mark_h = .5
     #ax1.scatter(np.nanmean(bird_latencies[s]),mark_h,marker='v',color=bird_colors[i])
     #ax2.scatter(np.nanmean(bird_durations[s]),mark_h,marker='v',color=bird_colors[i])
 
-ax2.boxplot(bird_durations.values(),positions=dur_heights,vert=False,widths=dur_widths,showfliers=False)
+
+if True:
+    dur_heights = np.linspace(base_d,top_d,len(bird_durations.keys()))[::-1]
+    count = 0
+    for a_ in aviary_order:
+        for b_ in order_by_aviary[a_]:
+            if b_ == 0:
+                label = plot_aviary_names[a_]
+            else:
+                label = None
+            ax2.boxplot(durations_by_aviary[a_][b_],positions=[dur_heights[count]],vert=False,showfliers=False,widths=[dur_widths[0]])
+            ys = [dur_heights[count]] * len(durations_by_aviary[a_][b_])
+            ax2.scatter(durations_by_aviary[a_][b_],ys,alpha=.5,marker='.',color=aviary_colors[a_],label=label)
+            count += 1
+else:
+    ax2.boxplot(bird_durations.values(),positions=dur_heights,vert=False,widths=dur_widths,showfliers=False)
+#
+#for a in aviary_order:
+    
 #print(lat_heights)
 #print(bird_latencies)
 ax1.boxplot(bird_latencies.values(),positions=lat_heights,vert=False,widths=lat_widths,showfliers=False)
 
-dur_xs = np.linspace(-5,25,100)    
-lat_xs = np.linspace(-2,3,100)
+dur_xs = np.linspace(0,25,100)    
+lat_xs = np.linspace(0,3,100)
 #ax1.scatter(np.nanmean(good_latencies),mark_h *3,marker='v',color='red',s=60)
 #ax2.scatter(np.nanmean(good_durations),mark_h *3,marker='v',color='red',s=60)
 
@@ -135,7 +185,7 @@ ax1.hist(good_latencies,bins=20,color='gray',alpha=.2,density=True)
 ax2.hist(good_durations,bins=10,color='gray',alpha=.2,density=True)
 
 ax1.scatter(np.mean(good_latencies),.1,marker='v',color='black')
-ax2.scatter(np.mean(good_durations),.1,marker='v',color='black')
+ax2.scatter(np.mean(good_durations),.02,marker='v',color='black')
 lat_curve =  gaussian_kde(good_latencies)
 ax1.plot(lat_xs,lat_curve(lat_xs),color='black')
 
@@ -161,25 +211,34 @@ ax2.set_xlabel('Duration (s)')
 ax2.axvline(0,linestyle=':',color='black')
 """
 ax1.set_ylabel('Density')
+ax2.set_ylabel('Density')
 
 ax1.set_xlabel('Latency (s)')
+ax2.set_xlabel('Duration (s)')
 
 ax1.axvline(0,linestyle=':',color='black')
+ax2.axvline(0,linestyle=':',color='black')
 
 #fig.legend()
 
 ax1.legend(loc='lower right')
+ax2.legend(loc='lower right')
 #fig.set_size_inches(10,5)
-fig.set_size_inches(8,5)
 fig.tight_layout()
+fig.set_size_inches(6,3.5)
 fig.show()
+fig2.tight_layout()
+fig2.set_size_inches(6,3.5)
 fig2.show()
-plt.show()
+if False:
+    plt.show()
 
 print('Latencies:',np.mean(good_latencies),np.std(good_latencies),len(good_latencies))
 print('Median Latency:',np.median(good_latencies))
 print('Durations:',np.mean(good_durations),np.std(good_durations),len(good_durations))
 
-if False:
-    fig.savefig('./figures/7a.png',dpi=300)
-    fig.savefig('./figures/7a.svg')
+if True:
+    fig.savefig('./figures/3a.png',dpi=300)
+    fig.savefig('./figures/3a.svg')
+    fig2.savefig('./figures/4a.png',dpi=300)
+    fig2.savefig('./figures/4a.svg')
