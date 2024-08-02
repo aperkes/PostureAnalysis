@@ -17,8 +17,10 @@ from joblib import Parallel, delayed
 from scipy.stats import pearsonr,linregress
 
 DATA = False
-NOISE = True
+NOISE = False
 DEBUG = False
+
+
 class Params():
     def __init__(self,n_birds=10,n_songs=10,n_rounds=10,iterations=100,thresh=0.5,thresh_range=0.5,thresh_noise=0.1,signal_noise=0.1,bias=0.9,curve=3,naive_potency=0.5,lr=10):
         self.n_birds = n_birds
@@ -263,7 +265,7 @@ def getRstats(df_thresh,df_pot):
         e_list,p_list = subprocessR(df_pot,df_thresh)
     return [ [pot_interaction,thresh_interaction],[pot_divergence,thresh_divergence],e_list,p_list]
 
-def run_exp(params):
+def run_exp(params,save_dfs = False):
     thresh_array = np.empty([params.n_birds,params.n_rounds])
     for b in range(params.n_birds):
         start_noise = (np.random.random() - 0.5) * params.thresh_noise
@@ -415,6 +417,23 @@ def run_exp(params):
             df_thresh.loc[(df_thresh.Bird == b) & (df_thresh.Song == s),"B1Potency"] = thresh_avgb1
             df_pot.loc[(df_pot.Bird == b) & (df_pot.Song == s),"B1Potency"] = pot_avgb1
 
+    if save_dfs:
+        df_thresh['AvgPotency'] = 0.0
+        df_pot['AvgPotency'] = 0.0
+
+        n_birds = params.n_birds
+        n_songs = params.n_songs
+        for b in range(n_birds):
+            other_birds = np.arange(n_birds)[np.arange(n_birds) != b]
+            thresh_scores = np.nanmean(response_array_thresh[other_birds],axis=(0,1))
+            pot_scores = np.nanmean(response_array_pot[other_birds],axis=(0,1))
+            for s in range(n_songs):
+                df_thresh.loc[(df_thresh.Bird == b) & (df_thresh.Song == s),'AvgPotency'] = thresh_scores[s]
+                df_pot.loc[(df_pot.Bird == b) & (df_pot.Song == s),'AvgPotency'] = pot_scores[s]
+
+
+        df_thresh.to_csv('./tmp_thresh.csv')
+        df_pot.to_csv('./tmp_pot.csv')
     #import pdb;pdb.set_trace()
     #all_threshs[i] = response_array_thresh
     #all_pots[i] = response_array_pot

@@ -15,128 +15,24 @@ setwd("~/Documents/Scripts/PostureAnalysis")
 #csd_data <- read.csv("./full_df2.csv")
 csd_data.raw <- read.csv("./full_df3.csv")
 
-csd_data.raw$PostureSum <- 0
-aggregate(csd_data.raw$Posture,by=list(Category=csd_data.raw$BirdID),FUN=sum)
+bird_list.all <- aggregate(csd_data.raw$Posture,by=list(Category=csd_data.raw$Bird),FUN=sum)
+print(dim(bird_list.all))
 ```
 
 ```
-##     Category   x
-## 1     CB-LB2  40
-## 2  CB-Orange  64
-## 3      CB-R2   0
-## 4     CB-Red   6
-## 5   CB-White  26
-## 6      CB-Y2  80
-## 7  CB-Yellow  47
-## 8        F2B  16
-## 9       F2MB  91
-## 10      F2NL  26
-## 11      F2PO  40
-## 12      FBON   4
-## 13      FBWB   4
-## 14      FDMW  44
-## 15      FGBD  34
-## 16      FGHB  22
-## 17      FGNP  11
-## 18      FGOG   7
-## 19      FGRN 102
-## 20      FGWL  51
-## 21      FGWO   3
-## 22       FLG  53
-## 23       FLN   5
-## 24      FLOL  17
-## 25      FLPD   1
-## 26      FLRO   2
-## 27      FLWD  35
-## 28      FM2N  30
-## 29      FN2R   2
-## 30       FNM   3
-## 31      FNMO   3
-## 32       FNO  22
-## 33      FNWD  38
-## 34      FNYO  14
-## 35      FO2P  38
-## 36      FO2R   9
-## 37      FOGO  29
-## 38     FPG/M  41
-## 39      FR2D 130
-## 40      FR2M  58
-## 41       FRG   2
-## 42       FRM  46
-## 43      FROY  30
-## 44      FRWB   2
-## 45      FWGP   9
-## 46      FWMW  32
-## 47      FWRW   7
-## 48      FYGN   5
-## 49       FYR  35
-## 50      GR11  32
-## 51      GR13  24
-## 52      LB20  40
-## 53        P1  14
-## 54     PINK2  40
-## 55      Wh14  14
-## 56      WH15   0
-## 57      WH19  28
-## 58      WH20   2
-## 59      WH24  29
-## 60        Y1 104
+## [1] 68  2
 ```
 
 ``` r
 filtered_csd <- csd_data.raw %>%
-  group_by(BirdID) %>%
+  group_by(Bird) %>%
   filter(sum(Posture) > 5)
-aggregate(filtered_csd$Posture,by=list(Category=filtered_csd$BirdID),FUN=sum)
+bird_list.some <- aggregate(filtered_csd$Posture,by=list(Category=filtered_csd$Bird),FUN=sum)
+print(dim(bird_list.some))
 ```
 
 ```
-##     Category   x
-## 1     CB-LB2  40
-## 2  CB-Orange  64
-## 3     CB-Red   6
-## 4   CB-White  26
-## 5      CB-Y2  80
-## 6  CB-Yellow  47
-## 7        F2B  16
-## 8       F2MB  91
-## 9       F2NL  26
-## 10      F2PO  40
-## 11      FDMW  44
-## 12      FGBD  34
-## 13      FGHB  22
-## 14      FGNP  11
-## 15      FGOG   7
-## 16      FGRN 102
-## 17      FGWL  51
-## 18       FLG  53
-## 19      FLOL  17
-## 20      FLWD  35
-## 21      FM2N  30
-## 22       FNO  22
-## 23      FNWD  38
-## 24      FNYO  14
-## 25      FO2P  38
-## 26      FO2R   9
-## 27      FOGO  29
-## 28     FPG/M  41
-## 29      FR2D 130
-## 30      FR2M  58
-## 31       FRM  46
-## 32      FROY  30
-## 33      FWGP   9
-## 34      FWMW  32
-## 35      FWRW   7
-## 36       FYR  35
-## 37      GR11  32
-## 38      GR13  24
-## 39      LB20  40
-## 40        P1  14
-## 41     PINK2  40
-## 42      Wh14  14
-## 43      WH19  28
-## 44      WH24  29
-## 45        Y1 104
+## [1] 53  2
 ```
 
 ``` r
@@ -167,64 +63,23 @@ song_means <- csd_data.set0 %>%
 ```
 
 ```
-## `summarise()` has grouped output by 'SongID'. You can override using the `.groups` argument.
+## `summarise()` has grouped output by 'SongID'. You can override using the `.groups`
+## argument.
 ```
 
 ``` r
-print(song_means)
-```
+#print(song_means)
+#csd_data.set0[csd_data.set0$Aviary == 1,]
 
-```
-## # A tibble: 40 × 5
-## # Groups:   SongID [10]
-##    SongID Aviary mean_pot std_pot pres_count
-##    <chr>   <int>    <dbl>   <dbl>      <int>
-##  1 2M          1    0.625   0.703         48
-##  2 2M          2    0.167   0.376         66
-##  3 2M          5    0.378   0.646         90
-##  4 2M          6    0.327   0.552         98
-##  5 BDY         1    0.830   0.524         47
-##  6 BDY         2    0.591   0.554         66
-##  7 BDY         5    0.489   0.604         90
-##  8 BDY         6    0.520   0.692         98
-##  9 BOD         1    0.477   0.698         44
-## 10 BOD         2    0.242   0.466         66
-## # ℹ 30 more rows
-```
-
-``` r
-csd_data.set0[csd_data.set0$Aviary == 1,]
-```
-
-```
-## # A tibble: 464 × 22
-## # Groups:   BirdID [6]
-##    Posture BirdID   Bird Block SongID  Song Aviary SongSet Duration Latency AvgPotency B1Potency AvgRank B1Rank
-##      <dbl> <chr>   <int> <int> <chr>  <int>  <int>   <int>    <dbl>   <dbl>      <dbl>     <dbl>   <dbl>  <dbl>
-##  1       1 CB-Whi…     3     0 BDY        0      1       0        5      NA      0.829       1         1    4  
-##  2       0 CB-Whi…     3     0 BOD        1      1       0       NA      NA      0.265       1         9    4  
-##  3       1 CB-Whi…     3     0 ND         2      1       0        4      NA      0.526       1         3    4  
-##  4       0 CB-Whi…     3     0 LB         3      1       0       NA      NA      0.316       1         7    4  
-##  5       0 CB-Whi…     3     0 2M         4      1       0       NA      NA      0.447       1         4    4  
-##  6       0 CB-Whi…     3     0 DBR        5      1       0       NA      NA      0.147       0        10   12  
-##  7       1 CB-Whi…     3     0 GRG        6      1       0        5      NA      0.429       1         5    4  
-##  8       0 CB-Whi…     3     0 WG         7      1       0       NA      NA      0.540       1         2    4  
-##  9       1 CB-Whi…     3     0 LNR        8      1       0        2      NA      0.389       0.5       6    8.5
-## 10       0 CB-Whi…     3     0 DMG        9      1       0       NA      NA      0.270       0.5       8    8.5
-## # ℹ 454 more rows
-## # ℹ 8 more variables: BlockResponseRate <dbl>, LowResponse <chr>, WrongResponseRate <dbl>, Prefix <chr>,
-## #   MaxVelocity <dbl>, PeakHeight <dbl>, BVPotency <dbl>, PostureSum <dbl>
-```
-
-``` r
 ## Consistency of preference: 
 song_means.birds <- csd_data.set0 %>%
-  group_by(SongID,BirdID,Aviary) %>%
+  group_by(SongID,Bird,Aviary) %>%
   summarize(mean_pot = mean(Posture),std_pot = sd(Posture),pres_count = length(Posture))
 ```
 
 ```
-## `summarise()` has grouped output by 'SongID', 'BirdID'. You can override using the `.groups` argument.
+## `summarise()` has grouped output by 'SongID', 'Bird'. You can override using the
+## `.groups` argument.
 ```
 
 ``` r
@@ -233,1012 +88,28 @@ aviaries <- unique(song_means$Aviary)
 corrs.aviary <- c()
 corrs.birds <- c()
 for (a in aviaries) {
-  birds <- unique(song_means.birds[song_means.birds$Aviary == a,]$BirdID)
+  birds <- unique(song_means.birds[song_means.birds$Aviary == a,]$Bird)
   song_means.sub <- song_means.birds[song_means.birds$Aviary == a,]
-  birds <- unique(song_means.sub$BirdID)
+  birds <- unique(song_means.sub$Bird)
   for (i in birds) {
     for (j in birds) {
       if (i == j) next
-      print(c(i,j))
-      res.cor <- cor.test(x=song_means.sub[song_means.sub$BirdID == i,]$mean_pot,
-                          y=song_means.sub[song_means.sub$BirdID == j,]$mean_pot,method='pearson')
-      print(res.cor$estimate)
+      #print(c(i,j))
+      res.cor <- cor.test(x=song_means.sub[song_means.sub$Bird == i,]$mean_pot,
+                          y=song_means.sub[song_means.sub$Bird == j,]$mean_pot,method='pearson')
+      #print(res.cor$estimate)
       corrs.birds <- c(corrs.birds,res.cor$estimate)
     }
   }
   for (b in aviaries) {
 
     if (a == b) next
-    print(c(a,b))
+    #print(c(a,b))
     res.cor <- cor.test(x=song_means[song_means$Aviary == a,]$mean_pot,y=song_means[song_means$Aviary == b,]$mean_pot,method='pearson')
-    print(res.cor$estimate)
+    #print(res.cor$estimate)
     corrs.aviary <- c(corrs.aviary,res.cor$estimate)
     }
   }
-```
-
-```
-## [1] "CB-LB2"    "CB-Orange"
-##        cor 
-## 0.08551833 
-## [1] "CB-LB2" "CB-Red"
-##       cor 
-## 0.6183155 
-## [1] "CB-LB2"   "CB-White"
-##       cor 
-## 0.7272535 
-## [1] "CB-LB2" "CB-Y2" 
-##       cor 
-## 0.1658263 
-## [1] "CB-LB2"    "CB-Yellow"
-##       cor 
-## 0.5372215 
-## [1] "CB-Orange" "CB-LB2"   
-##        cor 
-## 0.08551833 
-## [1] "CB-Orange" "CB-Red"   
-##         cor 
-## -0.03738416 
-## [1] "CB-Orange" "CB-White" 
-##          cor 
-## -0.009275626 
-## [1] "CB-Orange" "CB-Y2"    
-##       cor 
-## -0.112255 
-## [1] "CB-Orange" "CB-Yellow"
-##       cor 
-## 0.4594245 
-## [1] "CB-Red" "CB-LB2"
-##       cor 
-## 0.6183155 
-## [1] "CB-Red"    "CB-Orange"
-##         cor 
-## -0.03738416 
-## [1] "CB-Red"   "CB-White"
-##       cor 
-## 0.2042016 
-## [1] "CB-Red" "CB-Y2" 
-##       cor 
-## 0.2806249 
-## [1] "CB-Red"    "CB-Yellow"
-##       cor 
-## 0.1236055 
-## [1] "CB-White" "CB-LB2"  
-##       cor 
-## 0.7272535 
-## [1] "CB-White"  "CB-Orange"
-##          cor 
-## -0.009275626 
-## [1] "CB-White" "CB-Red"  
-##       cor 
-## 0.2042016 
-## [1] "CB-White" "CB-Y2"   
-##        cor 
-## 0.01322967 
-## [1] "CB-White"  "CB-Yellow"
-##     cor 
-## 0.25709 
-## [1] "CB-Y2"  "CB-LB2"
-##       cor 
-## 0.1658263 
-## [1] "CB-Y2"     "CB-Orange"
-##       cor 
-## -0.112255 
-## [1] "CB-Y2"  "CB-Red"
-##       cor 
-## 0.2806249 
-## [1] "CB-Y2"    "CB-White"
-##        cor 
-## 0.01322967 
-## [1] "CB-Y2"     "CB-Yellow"
-##        cor 
-## -0.3453539 
-## [1] "CB-Yellow" "CB-LB2"   
-##       cor 
-## 0.5372215 
-## [1] "CB-Yellow" "CB-Orange"
-##       cor 
-## 0.4594245 
-## [1] "CB-Yellow" "CB-Red"   
-##       cor 
-## 0.1236055 
-## [1] "CB-Yellow" "CB-White" 
-##     cor 
-## 0.25709 
-## [1] "CB-Yellow" "CB-Y2"    
-##        cor 
-## -0.3453539 
-## [1] 1 2
-##       cor 
-## 0.8008971 
-## [1] 1 5
-##       cor 
-## 0.2431226 
-## [1] 1 6
-##       cor 
-## 0.4691869 
-## [1] "GR11" "GR13"
-##       cor 
-## 0.7456437 
-## [1] "GR11" "LB20"
-##       cor 
-## 0.8532783 
-## [1] "GR11" "WH19"
-##       cor 
-## 0.3219165 
-## [1] "GR11" "WH24"
-##      cor 
-## 0.593745 
-## [1] "GR11" "Wh14"
-##       cor 
-## 0.5876964 
-## [1] "GR13" "GR11"
-##       cor 
-## 0.7456437 
-## [1] "GR13" "LB20"
-##      cor 
-## 0.598093 
-## [1] "GR13" "WH19"
-##       cor 
-## 0.3289369 
-## [1] "GR13" "WH24"
-##       cor 
-## 0.7879207 
-## [1] "GR13" "Wh14"
-##       cor 
-## 0.6087617 
-## [1] "LB20" "GR11"
-##       cor 
-## 0.8532783 
-## [1] "LB20" "GR13"
-##      cor 
-## 0.598093 
-## [1] "LB20" "WH19"
-##       cor 
-## 0.4269146 
-## [1] "LB20" "WH24"
-##       cor 
-## 0.5513323 
-## [1] "LB20" "Wh14"
-##      cor 
-## 0.736007 
-## [1] "WH19" "GR11"
-##       cor 
-## 0.3219165 
-## [1] "WH19" "GR13"
-##       cor 
-## 0.3289369 
-## [1] "WH19" "LB20"
-##       cor 
-## 0.4269146 
-## [1] "WH19" "WH24"
-##       cor 
-## 0.3871135 
-## [1] "WH19" "Wh14"
-##       cor 
-## 0.6153846 
-## [1] "WH24" "GR11"
-##      cor 
-## 0.593745 
-## [1] "WH24" "GR13"
-##       cor 
-## 0.7879207 
-## [1] "WH24" "LB20"
-##       cor 
-## 0.5513323 
-## [1] "WH24" "WH19"
-##       cor 
-## 0.3871135 
-## [1] "WH24" "Wh14"
-##       cor 
-## 0.6551399 
-## [1] "Wh14" "GR11"
-##       cor 
-## 0.5876964 
-## [1] "Wh14" "GR13"
-##       cor 
-## 0.6087617 
-## [1] "Wh14" "LB20"
-##      cor 
-## 0.736007 
-## [1] "Wh14" "WH19"
-##       cor 
-## 0.6153846 
-## [1] "Wh14" "WH24"
-##       cor 
-## 0.6551399 
-## [1] 2 1
-##       cor 
-## 0.8008971 
-## [1] 2 5
-##       cor 
-## 0.1739432 
-## [1] 2 6
-##       cor 
-## 0.5170011 
-## [1] "FGBD" "FGRN"
-##       cor 
-## 0.2895103 
-## [1] "FGBD" "FLG" 
-##        cor 
-## -0.4026464 
-## [1] "FGBD" "FNYO"
-##         cor 
-## -0.09814658 
-## [1] "FGBD" "FO2P"
-##        cor 
-## 0.09121731 
-## [1] "FGBD" "FOGO"
-##         cor 
-## -0.03637952 
-## [1] "FGBD" "FR2D"
-##        cor 
-## -0.4204574 
-## [1] "FGBD" "FRM" 
-##       cor 
-## 0.4705955 
-## [1] "FGBD" "FYR" 
-##       cor 
-## 0.1672787 
-## [1] "FGRN" "FGBD"
-##       cor 
-## 0.2895103 
-## [1] "FGRN" "FLG" 
-##       cor 
-## 0.4478909 
-## [1] "FGRN" "FNYO"
-##       cor 
-## 0.1191828 
-## [1] "FGRN" "FO2P"
-##       cor 
-## 0.4430735 
-## [1] "FGRN" "FOGO"
-##       cor 
-## 0.3534154 
-## [1] "FGRN" "FR2D"
-##           cor 
-## -1.828559e-16 
-## [1] "FGRN" "FRM" 
-##       cor 
-## 0.5175492 
-## [1] "FGRN" "FYR" 
-##       cor 
-## 0.2635231 
-## [1] "FLG"  "FGBD"
-##        cor 
-## -0.4026464 
-## [1] "FLG"  "FGRN"
-##       cor 
-## 0.4478909 
-## [1] "FLG"  "FNYO"
-##      cor 
-## 0.159431 
-## [1] "FLG"  "FO2P"
-##       cor 
-## 0.2298224 
-## [1] "FLG"  "FOGO"
-##       cor 
-## 0.0960302 
-## [1] "FLG"  "FR2D"
-##         cor 
-## -0.08812878 
-## [1] "FLG" "FRM"
-##       cor 
-## 0.1730815 
-## [1] "FLG" "FYR"
-##       cor 
-## 0.1007186 
-## [1] "FNYO" "FGBD"
-##         cor 
-## -0.09814658 
-## [1] "FNYO" "FGRN"
-##       cor 
-## 0.1191828 
-## [1] "FNYO" "FLG" 
-##      cor 
-## 0.159431 
-## [1] "FNYO" "FO2P"
-##       cor 
-## 0.7000666 
-## [1] "FNYO" "FOGO"
-##        cor 
-## 0.03369683 
-## [1] "FNYO" "FR2D"
-##        cor 
-## -0.3015113 
-## [1] "FNYO" "FRM" 
-##       cor 
-## 0.4276686 
-## [1] "FNYO" "FYR" 
-##      cor 
-## 0.452267 
-## [1] "FO2P" "FGBD"
-##        cor 
-## 0.09121731 
-## [1] "FO2P" "FGRN"
-##       cor 
-## 0.4430735 
-## [1] "FO2P" "FLG" 
-##       cor 
-## 0.2298224 
-## [1] "FO2P" "FNYO"
-##       cor 
-## 0.7000666 
-## [1] "FO2P" "FOGO"
-##       cor 
-## 0.3265999 
-## [1] "FO2P" "FR2D"
-##         cor 
-## -0.05337605 
-## [1] "FO2P" "FRM" 
-##       cor 
-## 0.3668997 
-## [1] "FO2P" "FYR" 
-##       cor 
-## 0.3024643 
-## [1] "FOGO" "FGBD"
-##         cor 
-## -0.03637952 
-## [1] "FOGO" "FGRN"
-##       cor 
-## 0.3534154 
-## [1] "FOGO" "FLG" 
-##       cor 
-## 0.0960302 
-## [1] "FOGO" "FNYO"
-##        cor 
-## 0.03369683 
-## [1] "FOGO" "FO2P"
-##       cor 
-## 0.3265999 
-## [1] "FOGO" "FR2D"
-##       cor 
-## 0.2142062 
-## [1] "FOGO" "FRM" 
-##       cor 
-## 0.2194918 
-## [1] "FOGO" "FYR" 
-##       cor 
-## -0.298026 
-## [1] "FR2D" "FGBD"
-##        cor 
-## -0.4204574 
-## [1] "FR2D" "FGRN"
-##           cor 
-## -1.828559e-16 
-## [1] "FR2D" "FLG" 
-##         cor 
-## -0.08812878 
-## [1] "FR2D" "FNYO"
-##        cor 
-## -0.3015113 
-## [1] "FR2D" "FO2P"
-##         cor 
-## -0.05337605 
-## [1] "FR2D" "FOGO"
-##       cor 
-## 0.2142062 
-## [1] "FR2D" "FRM" 
-##        cor 
-## -0.6910233 
-## [1] "FR2D" "FYR" 
-##        cor 
-## -0.6666667 
-## [1] "FRM"  "FGBD"
-##       cor 
-## 0.4705955 
-## [1] "FRM"  "FGRN"
-##       cor 
-## 0.5175492 
-## [1] "FRM" "FLG"
-##       cor 
-## 0.1730815 
-## [1] "FRM"  "FNYO"
-##       cor 
-## 0.4276686 
-## [1] "FRM"  "FO2P"
-##       cor 
-## 0.3668997 
-## [1] "FRM"  "FOGO"
-##       cor 
-## 0.2194918 
-## [1] "FRM"  "FR2D"
-##        cor 
-## -0.6910233 
-## [1] "FRM" "FYR"
-##       cor 
-## 0.7031465 
-## [1] "FYR"  "FGBD"
-##       cor 
-## 0.1672787 
-## [1] "FYR"  "FGRN"
-##       cor 
-## 0.2635231 
-## [1] "FYR" "FLG"
-##       cor 
-## 0.1007186 
-## [1] "FYR"  "FNYO"
-##      cor 
-## 0.452267 
-## [1] "FYR"  "FO2P"
-##       cor 
-## 0.3024643 
-## [1] "FYR"  "FOGO"
-##       cor 
-## -0.298026 
-## [1] "FYR"  "FR2D"
-##        cor 
-## -0.6666667 
-## [1] "FYR" "FRM"
-##       cor 
-## 0.7031465 
-## [1] 5 1
-##       cor 
-## 0.2431226 
-## [1] 5 2
-##       cor 
-## 0.1739432 
-## [1] 5 6
-##       cor 
-## 0.2831633 
-## [1] "F2MB" "F2PO"
-##       cor 
-## 0.4165726 
-## [1] "F2MB" "FDMW"
-##        cor 
-## -0.2163856 
-## [1] "F2MB" "FGHB"
-##       cor 
-## 0.4164556 
-## [1] "F2MB" "FGNP"
-##       cor 
-## 0.3130952 
-## [1] "F2MB" "FGOG"
-##        cor 
-## -0.3415145 
-## [1] "F2MB" "FGRN"
-##         cor 
-## -0.07507377 
-## [1] "F2MB" "FLOL"
-##         cor 
-## 0.006637087 
-## [1] "F2MB" "FO2R"
-##       cor 
-## 0.2017045 
-## [1] "F2MB" "FOGO"
-##       cor 
-## 0.2936662 
-## [1] "F2MB"  "FPG/M"
-##       cor 
-## 0.7020318 
-## [1] "F2MB" "FR2D"
-##        cor 
-## -0.2155414 
-## [1] "F2MB" "FWMW"
-##       cor 
-## 0.3784475 
-## [1] "F2MB" "FYR" 
-##       cor 
-## 0.2737346 
-## [1] "F2PO" "F2MB"
-##       cor 
-## 0.4165726 
-## [1] "F2PO" "FDMW"
-##        cor 
-## 0.05603318 
-## [1] "F2PO" "FGHB"
-##       cor 
-## 0.8235162 
-## [1] "F2PO" "FGNP"
-##        cor 
-## -0.1547818 
-## [1] "F2PO" "FGOG"
-##        cor 
-## -0.5238095 
-## [1] "F2PO" "FGRN"
-##       cor 
-## 0.4082483 
-## [1] "F2PO" "FLOL"
-##       cor 
-## 0.2045226 
-## [1] "F2PO" "FO2R"
-##       cor 
-## -0.108698 
-## [1] "F2PO" "FOGO"
-##       cor 
-## 0.2241327 
-## [1] "F2PO"  "FPG/M"
-##       cor 
-## 0.4241802 
-## [1] "F2PO" "FR2D"
-##        cor 
-## -0.1833907 
-## [1] "F2PO" "FWMW"
-##         cor 
-## -0.09799919 
-## [1] "F2PO" "FYR" 
-##       cor 
-## 0.1653954 
-## [1] "FDMW" "F2MB"
-##        cor 
-## -0.2163856 
-## [1] "FDMW" "F2PO"
-##        cor 
-## 0.05603318 
-## [1] "FDMW" "FGHB"
-##        cor 
-## 0.09421114 
-## [1] "FDMW" "FGNP"
-##        cor 
-## -0.1652673 
-## [1] "FDMW" "FGOG"
-##         cor 
-## -0.08716273 
-## [1] "FDMW" "FGRN"
-##       cor 
-## 0.2802243 
-## [1] "FDMW" "FLOL"
-##        cor 
-## 0.09909575 
-## [1] "FDMW" "FO2R"
-##        cor 
-## 0.09495946 
-## [1] "FDMW" "FOGO"
-##        cor 
-## 0.05769231 
-## [1] "FDMW"  "FPG/M"
-##        cor 
-## -0.1314916 
-## [1] "FDMW" "FR2D"
-##       cor 
-## 0.1204075 
-## [1] "FDMW" "FWMW"
-##         cor 
-## -0.06726728 
-## [1] "FDMW" "FYR" 
-##         cor 
-## -0.07568563 
-## [1] "FGHB" "F2MB"
-##       cor 
-## 0.4164556 
-## [1] "FGHB" "F2PO"
-##       cor 
-## 0.8235162 
-## [1] "FGHB" "FDMW"
-##        cor 
-## 0.09421114 
-## [1] "FGHB" "FGNP"
-##        cor 
-## -0.2120488 
-## [1] "FGHB" "FGOG"
-##        cor 
-## -0.1245441 
-## [1] "FGHB" "FGRN"
-##       cor 
-## 0.5774531 
-## [1] "FGHB" "FLOL"
-##         cor 
-## -0.02697045 
-## [1] "FGHB" "FO2R"
-##       cor 
-## 0.3987467 
-## [1] "FGHB" "FOGO"
-##       cor 
-## 0.5338631 
-## [1] "FGHB"  "FPG/M"
-##       cor 
-## 0.3680999 
-## [1] "FGHB" "FR2D"
-##       cor 
-## 0.2949369 
-## [1] "FGHB" "FWMW"
-##       cor 
-## 0.1785014 
-## [1] "FGHB" "FYR" 
-##       cor 
-## 0.6091424 
-## [1] "FGNP" "F2MB"
-##       cor 
-## 0.3130952 
-## [1] "FGNP" "F2PO"
-##        cor 
-## -0.1547818 
-## [1] "FGNP" "FDMW"
-##        cor 
-## -0.1652673 
-## [1] "FGNP" "FGHB"
-##        cor 
-## -0.2120488 
-## [1] "FGNP" "FGOG"
-##       cor 
-## 0.3076527 
-## [1] "FGNP" "FGRN"
-##         cor 
-## -0.09829464 
-## [1] "FGNP" "FLOL"
-##        cor 
-## -0.7806505 
-## [1] "FGNP" "FO2R"
-##         cor 
-## 0.008327264 
-## [1] "FGNP" "FOGO"
-##        cor 
-## 0.04721922 
-## [1] "FGNP"  "FPG/M"
-##       cor 
-## 0.2190866 
-## [1] "FGNP" "FR2D"
-##         cor 
-## -0.04703498 
-## [1] "FGNP" "FWMW"
-##       cor 
-## -0.020646 
-## [1] "FGNP" "FYR" 
-##        cor 
-## 0.05973378 
-## [1] "FGOG" "F2MB"
-##        cor 
-## -0.3415145 
-## [1] "FGOG" "F2PO"
-##        cor 
-## -0.5238095 
-## [1] "FGOG" "FDMW"
-##         cor 
-## -0.08716273 
-## [1] "FGOG" "FGHB"
-##        cor 
-## -0.1245441 
-## [1] "FGOG" "FGNP"
-##       cor 
-## 0.3076527 
-## [1] "FGOG" "FGRN"
-##      cor 
-## 0.196564 
-## [1] "FGOG" "FLOL"
-##        cor 
-## -0.7392222 
-## [1] "FGOG" "FO2R"
-##       cor 
-## 0.5918002 
-## [1] "FGOG" "FOGO"
-##      cor 
-## 0.414023 
-## [1] "FGOG"  "FPG/M"
-##        cor 
-## -0.0744976 
-## [1] "FGOG" "FR2D"
-##       cor 
-## 0.5643472 
-## [1] "FGOG" "FWMW"
-##       cor 
-## 0.0571662 
-## [1] "FGOG" "FYR" 
-##       cor 
-## 0.5084376 
-## [1] "FGRN" "F2MB"
-##         cor 
-## -0.07507377 
-## [1] "FGRN" "F2PO"
-##       cor 
-## 0.4082483 
-## [1] "FGRN" "FDMW"
-##       cor 
-## 0.2802243 
-## [1] "FGRN" "FGHB"
-##       cor 
-## 0.5774531 
-## [1] "FGRN" "FGNP"
-##         cor 
-## -0.09829464 
-## [1] "FGRN" "FGOG"
-##      cor 
-## 0.196564 
-## [1] "FGRN" "FLOL"
-##       cor 
-## -0.194824 
-## [1] "FGRN" "FO2R"
-##       cor 
-## 0.4329999 
-## [1] "FGRN" "FOGO"
-##       cor 
-## 0.5204165 
-## [1] "FGRN"  "FPG/M"
-##       cor 
-## 0.1173093 
-## [1] "FGRN" "FR2D"
-##       cor 
-## 0.6304181 
-## [1] "FGRN" "FWMW"
-##       cor 
-## -0.081683 
-## [1] "FGRN" "FYR" 
-##       cor 
-## 0.5176715 
-## [1] "FLOL" "F2MB"
-##         cor 
-## 0.006637087 
-## [1] "FLOL" "F2PO"
-##       cor 
-## 0.2045226 
-## [1] "FLOL" "FDMW"
-##        cor 
-## 0.09909575 
-## [1] "FLOL" "FGHB"
-##         cor 
-## -0.02697045 
-## [1] "FLOL" "FGNP"
-##        cor 
-## -0.7806505 
-## [1] "FLOL" "FGOG"
-##        cor 
-## -0.7392222 
-## [1] "FLOL" "FGRN"
-##       cor 
-## -0.194824 
-## [1] "FLOL" "FO2R"
-##        cor 
-## -0.4252459 
-## [1] "FLOL" "FOGO"
-##        cor 
-## -0.3468351 
-## [1] "FLOL"  "FPG/M"
-##         cor 
-## -0.05646447 
-## [1] "FLOL" "FR2D"
-##        cor 
-## -0.4183386 
-## [1] "FLOL" "FWMW"
-##        cor 
-## -0.1010995 
-## [1] "FLOL" "FYR" 
-##        cor 
-## -0.4503646 
-## [1] "FO2R" "F2MB"
-##       cor 
-## 0.2017045 
-## [1] "FO2R" "F2PO"
-##       cor 
-## -0.108698 
-## [1] "FO2R" "FDMW"
-##        cor 
-## 0.09495946 
-## [1] "FO2R" "FGHB"
-##       cor 
-## 0.3987467 
-## [1] "FO2R" "FGNP"
-##         cor 
-## 0.008327264 
-## [1] "FO2R" "FGOG"
-##       cor 
-## 0.5918002 
-## [1] "FO2R" "FGRN"
-##       cor 
-## 0.4329999 
-## [1] "FO2R" "FLOL"
-##        cor 
-## -0.4252459 
-## [1] "FO2R" "FOGO"
-##       cor 
-## 0.7868069 
-## [1] "FO2R"  "FPG/M"
-##       cor 
-## 0.3378966 
-## [1] "FO2R" "FR2D"
-##       cor 
-## 0.6447492 
-## [1] "FO2R" "FWMW"
-##       cor 
-## 0.6050031 
-## [1] "FO2R" "FYR" 
-##       cor 
-## 0.8046581 
-## [1] "FOGO" "F2MB"
-##       cor 
-## 0.2936662 
-## [1] "FOGO" "F2PO"
-##       cor 
-## 0.2241327 
-## [1] "FOGO" "FDMW"
-##        cor 
-## 0.05769231 
-## [1] "FOGO" "FGHB"
-##       cor 
-## 0.5338631 
-## [1] "FOGO" "FGNP"
-##        cor 
-## 0.04721922 
-## [1] "FOGO" "FGOG"
-##      cor 
-## 0.414023 
-## [1] "FOGO" "FGRN"
-##       cor 
-## 0.5204165 
-## [1] "FOGO" "FLOL"
-##        cor 
-## -0.3468351 
-## [1] "FOGO" "FO2R"
-##       cor 
-## 0.7868069 
-## [1] "FOGO"  "FPG/M"
-##       cor 
-## 0.6011046 
-## [1] "FOGO" "FR2D"
-##       cor 
-## 0.3174379 
-## [1] "FOGO" "FWMW"
-##       cor 
-## 0.1513514 
-## [1] "FOGO" "FYR" 
-##       cor 
-## 0.8866031 
-## [1] "FPG/M" "F2MB" 
-##       cor 
-## 0.7020318 
-## [1] "FPG/M" "F2PO" 
-##       cor 
-## 0.4241802 
-## [1] "FPG/M" "FDMW" 
-##        cor 
-## -0.1314916 
-## [1] "FPG/M" "FGHB" 
-##       cor 
-## 0.3680999 
-## [1] "FPG/M" "FGNP" 
-##       cor 
-## 0.2190866 
-## [1] "FPG/M" "FGOG" 
-##        cor 
-## -0.0744976 
-## [1] "FPG/M" "FGRN" 
-##       cor 
-## 0.1173093 
-## [1] "FPG/M" "FLOL" 
-##         cor 
-## -0.05646447 
-## [1] "FPG/M" "FO2R" 
-##       cor 
-## 0.3378966 
-## [1] "FPG/M" "FOGO" 
-##       cor 
-## 0.6011046 
-## [1] "FPG/M" "FR2D" 
-##        cor 
-## -0.3581864 
-## [1] "FPG/M" "FWMW" 
-##       cor 
-## 0.2299722 
-## [1] "FPG/M" "FYR"  
-##       cor 
-## 0.3115594 
-## [1] "FR2D" "F2MB"
-##        cor 
-## -0.2155414 
-## [1] "FR2D" "F2PO"
-##        cor 
-## -0.1833907 
-## [1] "FR2D" "FDMW"
-##       cor 
-## 0.1204075 
-## [1] "FR2D" "FGHB"
-##       cor 
-## 0.2949369 
-## [1] "FR2D" "FGNP"
-##         cor 
-## -0.04703498 
-## [1] "FR2D" "FGOG"
-##       cor 
-## 0.5643472 
-## [1] "FR2D" "FGRN"
-##       cor 
-## 0.6304181 
-## [1] "FR2D" "FLOL"
-##        cor 
-## -0.4183386 
-## [1] "FR2D" "FO2R"
-##       cor 
-## 0.6447492 
-## [1] "FR2D" "FOGO"
-##       cor 
-## 0.3174379 
-## [1] "FR2D"  "FPG/M"
-##        cor 
-## -0.3581864 
-## [1] "FR2D" "FWMW"
-##       cor 
-## 0.2680193 
-## [1] "FR2D" "FYR" 
-##       cor 
-## 0.5938911 
-## [1] "FWMW" "F2MB"
-##       cor 
-## 0.3784475 
-## [1] "FWMW" "F2PO"
-##         cor 
-## -0.09799919 
-## [1] "FWMW" "FDMW"
-##         cor 
-## -0.06726728 
-## [1] "FWMW" "FGHB"
-##       cor 
-## 0.1785014 
-## [1] "FWMW" "FGNP"
-##       cor 
-## -0.020646 
-## [1] "FWMW" "FGOG"
-##       cor 
-## 0.0571662 
-## [1] "FWMW" "FGRN"
-##       cor 
-## -0.081683 
-## [1] "FWMW" "FLOL"
-##        cor 
-## -0.1010995 
-## [1] "FWMW" "FO2R"
-##       cor 
-## 0.6050031 
-## [1] "FWMW" "FOGO"
-##       cor 
-## 0.1513514 
-## [1] "FWMW"  "FPG/M"
-##       cor 
-## 0.2299722 
-## [1] "FWMW" "FR2D"
-##       cor 
-## 0.2680193 
-## [1] "FWMW" "FYR" 
-##       cor 
-## 0.1796454 
-## [1] "FYR"  "F2MB"
-##       cor 
-## 0.2737346 
-## [1] "FYR"  "F2PO"
-##       cor 
-## 0.1653954 
-## [1] "FYR"  "FDMW"
-##         cor 
-## -0.07568563 
-## [1] "FYR"  "FGHB"
-##       cor 
-## 0.6091424 
-## [1] "FYR"  "FGNP"
-##        cor 
-## 0.05973378 
-## [1] "FYR"  "FGOG"
-##       cor 
-## 0.5084376 
-## [1] "FYR"  "FGRN"
-##       cor 
-## 0.5176715 
-## [1] "FYR"  "FLOL"
-##        cor 
-## -0.4503646 
-## [1] "FYR"  "FO2R"
-##       cor 
-## 0.8046581 
-## [1] "FYR"  "FOGO"
-##       cor 
-## 0.8866031 
-## [1] "FYR"   "FPG/M"
-##       cor 
-## 0.3115594 
-## [1] "FYR"  "FR2D"
-##       cor 
-## 0.5938911 
-## [1] "FYR"  "FWMW"
-##       cor 
-## 0.1796454 
-## [1] 6 1
-##       cor 
-## 0.4691869 
-## [1] 6 2
-##       cor 
-## 0.5170011 
-## [1] 6 5
-##       cor 
-## 0.2831633
-```
-
-``` r
 print('Mean across-aviary pearsons R:')
 ```
 
@@ -1280,7 +151,8 @@ resp_rate.birds <- csd_data.raw.binary %>%
 ```
 
 ```
-## `summarise()` has grouped output by 'Bird'. You can override using the `.groups` argument.
+## `summarise()` has grouped output by 'Bird'. You can override using the `.groups`
+## argument.
 ```
 
 ``` r
@@ -1310,11 +182,27 @@ plot(lat_data$Latency,lat_data$AvgPotency)
 ![plot of chunk unnamed-chunk-1](figure/unnamed-chunk-1-1.png)
 
 ``` r
+print('Number of CSDs:')
+```
+
+```
+## [1] "Number of CSDs:"
+```
+
+``` r
 length(lat_data$Latency)
 ```
 
 ```
 ## [1] 268
+```
+
+``` r
+print('Mean,Std Latency')
+```
+
+```
+## [1] "Mean,Std Latency"
 ```
 
 ``` r
@@ -1358,8 +246,11 @@ summary(latencyModel.lmer)
 ```
 
 ```
-## Linear mixed model fit by REML. t-tests use Satterthwaite's method ['lmerModLmerTest']
-## Formula: Latency ~ AvgPotency + BlockResponseRate + (1 | Bird) + (1 |      Song) + (1 | Block)
+## Linear mixed model fit by REML. t-tests use Satterthwaite's
+##   method [lmerModLmerTest]
+## Formula: 
+## Latency ~ AvgPotency + BlockResponseRate + (1 | Bird) + (1 |  
+##     Song) + (1 | Block)
 ##    Data: lat_data
 ## 
 ## REML criterion at convergence: -181.5
@@ -1377,10 +268,14 @@ summary(latencyModel.lmer)
 ## Number of obs: 268, groups:  Block, 20; Song, 12; Bird, 8
 ## 
 ## Fixed effects:
-##                    Estimate Std. Error        df t value Pr(>|t|)    
-## (Intercept)         1.02160    0.12470   9.11335   8.193  1.7e-05 ***
-## AvgPotency         -0.22994    0.07057  20.07507  -3.258  0.00392 ** 
-## BlockResponseRate  -0.11254    0.05031 185.88898  -2.237  0.02649 *  
+##                    Estimate Std. Error        df t value Pr(>|t|)
+## (Intercept)         1.02160    0.12470   9.11335   8.193  1.7e-05
+## AvgPotency         -0.22994    0.07057  20.07507  -3.258  0.00392
+## BlockResponseRate  -0.11254    0.05031 185.88898  -2.237  0.02649
+##                      
+## (Intercept)       ***
+## AvgPotency        ** 
+## BlockResponseRate *  
 ## ---
 ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 ## 
@@ -1442,7 +337,8 @@ testDispersion(simulationOutput,alternative='less')
 
 ```
 ## 
-## 	DHARMa nonparametric dispersion test via sd of residuals fitted vs. simulated
+## 	DHARMa nonparametric dispersion test via sd of residuals
+## 	fitted vs. simulated
 ## 
 ## data:  simulationOutput
 ## dispersion = 0.50603, p-value = 0.116
@@ -1457,7 +353,8 @@ testDispersion(simulationOutput)
 
 ```
 ## 
-## 	DHARMa nonparametric dispersion test via sd of residuals fitted vs. simulated
+## 	DHARMa nonparametric dispersion test via sd of residuals
+## 	fitted vs. simulated
 ## 
 ## data:  simulationOutput
 ## dispersion = 0.50603, p-value = 0.232
@@ -1481,7 +378,8 @@ testDispersion(simulationOutput,alternative='two.sided')
 
 ```
 ## 
-## 	DHARMa nonparametric dispersion test via sd of residuals fitted vs. simulated
+## 	DHARMa nonparametric dispersion test via sd of residuals
+## 	fitted vs. simulated
 ## 
 ## data:  simulationOutput
 ## dispersion = 0.98916, p-value = 0.984
@@ -1542,12 +440,14 @@ p.lat.pot <- plot(lat_overlay_pot,add.data = TRUE) +
 ```
 
 ```
-## Warning: Argument `add.data` is deprecated and will be removed in the future. Please use `show_data` instead.
+## Warning: Argument `add.data` is deprecated and will be removed in
+##   the future. Please use `show_data` instead.
 ```
 
 ```
-## Data points may overlap. Use the `jitter` argument to add some amount of random variation to the
-##   location of data points and avoid overplotting.
+## Data points may overlap. Use the `jitter` argument to add
+##   some amount of random variation to the location of data
+##   points and avoid overplotting.
 ```
 
 ``` r
@@ -1579,12 +479,13 @@ p.lat.resp <- plot(lat_overlay_rsp,add.data = TRUE) +
 ```
 
 ```
-## Warning: Argument `add.data` is deprecated and will be removed in the future. Please use `show_data` instead.
+## Warning: Argument `add.data` is deprecated and will be removed in the future. Please
+##   use `show_data` instead.
 ```
 
 ```
-## Data points may overlap. Use the `jitter` argument to add some amount of random variation to the
-##   location of data points and avoid overplotting.
+## Data points may overlap. Use the `jitter` argument to add some amount of
+##   random variation to the location of data points and avoid overplotting.
 ```
 
 ``` r
@@ -1616,6 +517,14 @@ dur_data <- dur_data[complete.cases(dur_data),]
 dur_data <- dur_data[dur_data$Posture == 1,]
 dur_data <- dur_data[dur_data$Duration> 0,]
 
+print('Number of CSDs for duration')
+```
+
+```
+## [1] "Number of CSDs for duration"
+```
+
+``` r
 length(dur_data$Duration)
 ```
 
@@ -1624,11 +533,27 @@ length(dur_data$Duration)
 ```
 
 ``` r
+print('Number of birds')
+```
+
+```
+## [1] "Number of birds"
+```
+
+``` r
 length(unique(dur_data$Bird))
 ```
 
 ```
 ## [1] 45
+```
+
+``` r
+print('Number of Aviaries')
+```
+
+```
+## [1] "Number of Aviaries"
 ```
 
 ``` r
@@ -1678,6 +603,14 @@ song_durations <- c(1.054833,
                     1.101667,
                     1.121792,
                     1.142313)
+print('mean,std of duration')
+```
+
+```
+## [1] "mean,std of duration"
+```
+
+``` r
 mean(song_durations)
 ```
 
@@ -1701,8 +634,10 @@ summary(durationModel.lmer)
 ```
 
 ```
-## Linear mixed model fit by REML. t-tests use Satterthwaite's method ['lmerModLmerTest']
-## Formula: Duration ~ AvgPotency + BlockResponseRate + (1 | Bird) + (1 |      Song) + (1 | Block) + (1 | Aviary)
+## Linear mixed model fit by REML. t-tests use Satterthwaite's method [lmerModLmerTest
+## ]
+## Formula: Duration ~ AvgPotency + BlockResponseRate + (1 | Bird) + (1 |  
+##     Song) + (1 | Block) + (1 | Aviary)
 ##    Data: dur_data
 ## 
 ## REML criterion at convergence: 4201.8
@@ -1764,9 +699,11 @@ summary(durationGamma)
 ```
 
 ```
-## Generalized linear mixed model fit by maximum likelihood (Laplace Approximation) ['glmerMod']
+## Generalized linear mixed model fit by maximum likelihood (Laplace Approximation) [
+## glmerMod]
 ##  Family: Gamma  ( log )
-## Formula: Duration ~ AvgPotency + BlockResponseRate + (1 | Bird) + (1 |      Song) + (1 | Block) + (1 | Aviary)
+## Formula: Duration ~ AvgPotency + BlockResponseRate + (1 | Bird) + (1 |  
+##     Song) + (1 | Block) + (1 | Aviary)
 ##    Data: dur_data
 ## 
 ##      AIC      BIC   logLik deviance df.resid 
@@ -1814,7 +751,8 @@ testDispersion(simulationOutput,alternative='less')
 
 ```
 ## 
-## 	DHARMa nonparametric dispersion test via sd of residuals fitted vs. simulated
+## 	DHARMa nonparametric dispersion test via sd of residuals fitted vs.
+## 	simulated
 ## 
 ## data:  simulationOutput
 ## dispersion = 0.12568, p-value < 2.2e-16
@@ -1882,12 +820,13 @@ p.dur.pot <- plot(dur_overlay_pot,add.data = TRUE) +
 ```
 
 ```
-## Warning: Argument `add.data` is deprecated and will be removed in the future. Please use `show_data` instead.
+## Warning: Argument `add.data` is deprecated and will be removed in the future. Please
+##   use `show_data` instead.
 ```
 
 ```
-## Data points may overlap. Use the `jitter` argument to add some amount of random variation to the
-##   location of data points and avoid overplotting.
+## Data points may overlap. Use the `jitter` argument to add some amount of
+##   random variation to the location of data points and avoid overplotting.
 ```
 
 ``` r
@@ -1919,12 +858,13 @@ p.dur.resp <- plot(dur_overlay_rsp,add.data = TRUE) +
 ```
 
 ```
-## Warning: Argument `add.data` is deprecated and will be removed in the future. Please use `show_data` instead.
+## Warning: Argument `add.data` is deprecated and will be removed in the future. Please
+##   use `show_data` instead.
 ```
 
 ```
-## Data points may overlap. Use the `jitter` argument to add some amount of random variation to the
-##   location of data points and avoid overplotting.
+## Data points may overlap. Use the `jitter` argument to add some amount of
+##   random variation to the location of data points and avoid overplotting.
 ```
 
 ``` r
@@ -1947,11 +887,27 @@ traj_data <- subset(csd_data,select=c("Posture","MaxVelocity","PeakHeight","AvgP
 traj_data <- traj_data[complete.cases(traj_data),]
 traj_data <- traj_data[traj_data$Posture == 1,]
 
+print('n CSD for trajectory:')
+```
+
+```
+## [1] "n CSD for trajectory:"
+```
+
+``` r
 length(traj_data[traj_data$Posture == 1,]$Posture)
 ```
 
 ```
 ## [1] 208
+```
+
+``` r
+print('n birds for trajectory')
+```
+
+```
+## [1] "n birds for trajectory"
 ```
 
 ``` r
@@ -1982,7 +938,8 @@ summary(velModel)
 ```
 
 ```
-## Linear mixed model fit by REML. t-tests use Satterthwaite's method ['lmerModLmerTest']
+## Linear mixed model fit by REML. t-tests use Satterthwaite's method [lmerModLmerTest
+## ]
 ## Formula: LogMaxVel ~ AvgPotency + BlockResponseRate + (1 | Bird)
 ##    Data: traj_data
 ## 
@@ -2046,8 +1003,10 @@ summary(peak_model)
 ```
 
 ```
-## Linear mixed model fit by REML. t-tests use Satterthwaite's method ['lmerModLmerTest']
-## Formula: PeakHeight ~ BVPotency + BlockResponseRate + (1 | Block) + (1 |      Bird)
+## Linear mixed model fit by REML. t-tests use Satterthwaite's method [lmerModLmerTest
+## ]
+## Formula: PeakHeight ~ BVPotency + BlockResponseRate + (1 | Block) + (1 |  
+##     Bird)
 ##    Data: traj_data
 ## 
 ## REML criterion at convergence: -868.8
@@ -2085,6 +1044,14 @@ birdview_data = csd_data[csd_data$Aviary < 2,]
 csd_counts <- table(csd_data$Posture)
 partial_prop <- csd_counts[3] / sum(csd_counts)
 full_prop <- csd_counts[2] / sum(csd_counts)
+print('Partial proportion, full proportion:')
+```
+
+```
+## [1] "Partial proportion, full proportion:"
+```
+
+``` r
 print(c(partial_prop,full_prop))
 ```
 
@@ -2109,19 +1076,21 @@ n_playbacks <- length(birdview_data$Posture)
 n_csd <- length(which(birdview_data$Posture == 1))
 n_partials <- length(which(birdview_data$Posture == 2))
 
-print(c("proportion of full CSD:",n_csd / n_playbacks))
+print(c("proportion of full CSD (my experiments):",n_csd / n_playbacks))
 ```
 
 ```
-## [1] "proportion of full CSD:" "0.486529318541997"
+## [1] "proportion of full CSD (my experiments):"
+## [2] "0.486529318541997"
 ```
 
 ``` r
-print(c("proportion of partial CSDs:",n_partials / n_playbacks))
+print(c("proportion of partial CSDs (my experiments):",n_partials / n_playbacks))
 ```
 
 ```
-## [1] "proportion of partial CSDs:" "0.0903328050713154"
+## [1] "proportion of partial CSDs (my experiments):"
+## [2] "0.0903328050713154"
 ```
 
 ``` r
@@ -2138,8 +1107,10 @@ summary(partialLatModel)
 ```
 
 ```
-## Linear mixed model fit by REML. t-tests use Satterthwaite's method ['lmerModLmerTest']
-## Formula: Latency ~ Posture + AvgPotency + BlockResponseRate + (1 | Bird) +      (1 | Song) + (1 | Block)
+## Linear mixed model fit by REML. t-tests use Satterthwaite's method [lmerModLmerTest
+## ]
+## Formula: Latency ~ Posture + AvgPotency + BlockResponseRate + (1 | Bird) +  
+##     (1 | Song) + (1 | Block)
 ##    Data: latPart_data
 ## 
 ## REML criterion at convergence: -147
@@ -2239,12 +1210,13 @@ plot(partLat_overlay_pot,add.data = TRUE)
 ```
 
 ```
-## Warning: Argument `add.data` is deprecated and will be removed in the future. Please use `show_data` instead.
+## Warning: Argument `add.data` is deprecated and will be removed in the future. Please
+##   use `show_data` instead.
 ```
 
 ```
-## Data points may overlap. Use the `jitter` argument to add some amount of random variation to the
-##   location of data points and avoid overplotting.
+## Data points may overlap. Use the `jitter` argument to add some amount of
+##   random variation to the location of data points and avoid overplotting.
 ```
 
 ![plot of chunk unnamed-chunk-1](figure/unnamed-chunk-1-24.png)
@@ -2257,7 +1229,8 @@ summary(partialModel.posture)
 ```
 
 ```
-## Linear mixed model fit by REML. t-tests use Satterthwaite's method ['lmerModLmerTest']
+## Linear mixed model fit by REML. t-tests use Satterthwaite's method [lmerModLmerTest
+## ]
 ## Formula: Latency ~ AvgPotency + BlockResponseRate + (1 | Bird)
 ##    Data: latPart_data.partials
 ## 
@@ -2290,6 +1263,14 @@ summary(partialModel.posture)
 ``` r
 ## Check potency of songs eliciting partial CSD: 
 
+print('Potency of songs eliciting non,full, and partial CSD')
+```
+
+```
+## [1] "Potency of songs eliciting non,full, and partial CSD"
+```
+
+``` r
 mean(birdview_data[birdview_data$Posture == 0,]$AvgPotency)
 ```
 
@@ -2327,8 +1308,10 @@ summary(partialModel)
 ```
 
 ```
-## Linear mixed model fit by REML. t-tests use Satterthwaite's method ['lmerModLmerTest']
-## Formula: AvgPotency ~ BlockResponseRate + (1 | Bird) + (1 | Song) + (1 |      Block) + (1 | Aviary)
+## Linear mixed model fit by REML. t-tests use Satterthwaite's method [lmerModLmerTest
+## ]
+## Formula: AvgPotency ~ BlockResponseRate + (1 | Bird) + (1 | Song) + (1 |  
+##     Block) + (1 | Aviary)
 ##    Data: partial_data
 ## 
 ## REML criterion at convergence: -490.9
@@ -2377,12 +1360,13 @@ plot(par_overlay_rsp,add.data = TRUE)
 ```
 
 ```
-## Warning: Argument `add.data` is deprecated and will be removed in the future. Please use `show_data` instead.
+## Warning: Argument `add.data` is deprecated and will be removed in the future. Please
+##   use `show_data` instead.
 ```
 
 ```
-## Data points may overlap. Use the `jitter` argument to add some amount of random variation to the
-##   location of data points and avoid overplotting.
+## Data points may overlap. Use the `jitter` argument to add some amount of
+##   random variation to the location of data points and avoid overplotting.
 ```
 
 ![plot of chunk unnamed-chunk-1](figure/unnamed-chunk-1-27.png)
@@ -2487,102 +1471,50 @@ effs.intercept <- list()
 effs.song <- list()
 effs.block <- list()
 
-for(a in aviaries) {
-  csd_binary.aviary <- csd_binary.clean[csd_binary.clean$Aviary == a,]
-  songs <- unique(csd_binary.aviary$SongID)
-  songs.pairs <- t(combn(songs,2))
-  for (i in seq(1,length(songs.pairs) / 2)) {
-    song.A <- songs.pairs[i,1]
-    song.B <- songs.pairs[i,2]
-    csd.aviary.subset <- csd_binary.aviary %>% filter(SongID == song.A | SongID == song.B)
-    csd.model.pair <- glmer(formula = Posture ~ SongID + Block + (1|Bird),
-                             data = csd.aviary.subset, 
-                             family=binomial)
-    print('doing something...')
-      effs.intercept[l] <- fixef(csd.model.pair)[[1]]
-      effs.song[l] <- abs(fixef(csd.model.pair)[[2]])
-      effs.block[l] <- fixef(csd.model.pair)[[3]]
-      l <- l + 1
+### This was sort of a hairbrained idea to try to get the effect of song vs block
+## without dealing with the circular logic of "potency", by having a model with just 
+## two songs at a time (to get around the problem of having 10 categorical variables)
+## I think it has promise, but is ultimately unnecessary. 
+
+if (FALSE) {
+  for(a in aviaries) {
+    csd_binary.aviary <- csd_binary.clean[csd_binary.clean$Aviary == a,]
+    songs <- unique(csd_binary.aviary$SongID)
+    songs.pairs <- t(combn(songs,2))
+    for (i in seq(1,length(songs.pairs) / 2)) {
+      song.A <- songs.pairs[i,1]
+      song.B <- songs.pairs[i,2]
+      csd.aviary.subset <- csd_binary.aviary %>% filter(SongID == song.A | SongID == song.B)
+      csd.model.pair <- glmer(formula = Posture ~ SongID + Block + (1|Bird),
+                               data = csd.aviary.subset, 
+                               family=binomial)
+      #print('doing something...')
+        effs.intercept[l] <- fixef(csd.model.pair)[[1]]
+        effs.song[l] <- abs(fixef(csd.model.pair)[[2]])
+        effs.block[l] <- fixef(csd.model.pair)[[3]]
+        l <- l + 1
+    }
+    break
   }
-  break
+
+  effs.intercept <- unlist(effs.intercept,use.names=FALSE)
+  effs.song <- unlist(effs.song,use.names=FALSE)
+  effs.block <- unlist(effs.block,use.names=FALSE)
+  
+  m.intercept <- mean(effs.intercept)
+  m.song <- mean(effs.song)
+  m.block <- mean(effs.block)
+  
+  se.intercept <- sd(effs.intercept) / sqrt(length(effs.intercept))
+  se.song <- sd(effs.song) / sqrt(length(effs.intercept))
+  se.block <- sd(effs.block) / sqrt(length(effs.intercept))
+  
+  print('')
+  print(m.intercept);print(se.intercept)
+  print(m.song);print(se.song)
+  print(m.block);print(se.block)
 }
-```
 
-```
-## [1] "doing something..."
-## [1] "doing something..."
-## [1] "doing something..."
-## [1] "doing something..."
-## [1] "doing something..."
-## [1] "doing something..."
-## [1] "doing something..."
-## [1] "doing something..."
-## [1] "doing something..."
-## [1] "doing something..."
-## [1] "doing something..."
-```
-
-```
-## Warning in checkConv(attr(opt, "derivs"), opt$par, ctrl = control$checkConv, : Model failed to converge with
-## max|grad| = 0.0100034 (tol = 0.002, component 1)
-```
-
-```
-## [1] "doing something..."
-## [1] "doing something..."
-## [1] "doing something..."
-## [1] "doing something..."
-```
-
-``` r
-effs.intercept <- unlist(effs.intercept,use.names=FALSE)
-effs.song <- unlist(effs.song,use.names=FALSE)
-effs.block <- unlist(effs.block,use.names=FALSE)
-
-m.intercept <- mean(effs.intercept)
-m.song <- mean(effs.song)
-m.block <- mean(effs.block)
-
-se.intercept <- sd(effs.intercept) / sqrt(length(effs.intercept))
-se.song <- sd(effs.song) / sqrt(length(effs.intercept))
-se.block <- sd(effs.block) / sqrt(length(effs.intercept))
-
-print(m.intercept);print(se.intercept)
-```
-
-```
-## [1] 3.816911
-```
-
-```
-## [1] 0.6054653
-```
-
-``` r
-print(m.song);print(se.song)
-```
-
-```
-## [1] 1.577381
-```
-
-```
-## [1] 0.3019884
-```
-
-``` r
-print(m.block);print(se.block)
-```
-
-```
-## [1] -0.2579032
-```
-
-```
-## [1] 0.0462037
-```
-
-``` r
 csd_binary.subset <- csd_binary.clean %>% filter(SongID == "BDY" | SongID == "2M")
 csd.model.clean <- glmer(formula = Posture ~ SongID + Block + (1|Bird),
                        data = csd_binary.subset, 
@@ -2591,7 +1523,8 @@ summary(csd.model.clean)
 ```
 
 ```
-## Generalized linear mixed model fit by maximum likelihood (Laplace Approximation) ['glmerMod']
+## Generalized linear mixed model fit by maximum likelihood (Laplace Approximation) [
+## glmerMod]
 ##  Family: binomial  ( logit )
 ## Formula: Posture ~ SongID + Block + (1 | Bird)
 ##    Data: csd_binary.subset
@@ -2632,7 +1565,8 @@ summary(csd.model.clean)
 ```
 
 ```
-## Generalized linear mixed model fit by maximum likelihood (Laplace Approximation) ['glmerMod']
+## Generalized linear mixed model fit by maximum likelihood (Laplace Approximation) [
+## glmerMod]
 ##  Family: binomial  ( logit )
 ## Formula: Posture ~ SongID + Block + (1 | Bird)
 ##    Data: csd_binary.subset
@@ -2668,7 +1602,8 @@ summary(csd.model.clean.int)
 ```
 
 ```
-## Generalized linear mixed model fit by maximum likelihood (Laplace Approximation) ['glmerMod']
+## Generalized linear mixed model fit by maximum likelihood (Laplace Approximation) [
+## glmerMod]
 ##  Family: binomial  ( logit )
 ## Formula: Posture ~ Song * Block + (1 | Bird)
 ##    Data: csd_binary.clean
@@ -2707,7 +1642,8 @@ summary(csd.model.pot.slope)
 ```
 
 ```
-## Generalized linear mixed model fit by maximum likelihood (Laplace Approximation) ['glmerMod']
+## Generalized linear mixed model fit by maximum likelihood (Laplace Approximation) [
+## glmerMod]
 ##  Family: binomial  ( logit )
 ## Formula: Posture ~ AvgPotency + BlockResponseRate + (AvgPotency | Bird)
 ##    Data: csd_binary.blockresponse
@@ -2744,7 +1680,8 @@ summary(csd.model.pot.slope.interaction)
 ```
 
 ```
-## Generalized linear mixed model fit by maximum likelihood (Laplace Approximation) ['glmerMod']
+## Generalized linear mixed model fit by maximum likelihood (Laplace Approximation) [
+## glmerMod]
 ##  Family: binomial  ( logit )
 ## Formula: Posture ~ AvgPotency * BlockResponseRate + (AvgPotency | Bird)
 ##    Data: csd_binary.blockresponse
@@ -2817,9 +1754,11 @@ summary(scoreModel)
 ```
 
 ```
-## Generalized linear mixed model fit by maximum likelihood (Laplace Approximation) ['glmerMod']
+## Generalized linear mixed model fit by maximum likelihood (Laplace Approximation) [
+## glmerMod]
 ##  Family: binomial  ( logit )
-## Formula: Posture ~ AvgPotency * Block + (1 | Bird) + (1 | Aviary) + (1 |      SongSet)
+## Formula: Posture ~ AvgPotency * Block + (1 | Bird) + (1 | Aviary) + (1 |  
+##     SongSet)
 ##    Data: csd_binary
 ## 
 ##      AIC      BIC   logLik deviance df.resid 
@@ -2855,9 +1794,12 @@ summary(scoreModel)
 ```
 
 ``` r
+modx_vals= c(0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9)
+#modx_vals=c(0.1,0.25,0.5,0.75,0.9)
+
 p.csd.data <- interact_plot(scoreModel,
-                            modxvals=c(0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9),
-                            pred=Block,modx=AvgPotency,colors=gray(1 - c(0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9))) + 
+                            modxvals=modx_vals,
+                            pred=Block,modx=AvgPotency,colors=gray(1 - modx_vals)) + 
   theme_classic() + 
   theme(legend.position = "right",
         rect=element_rect(fill="transparent"),
@@ -2881,7 +1823,10 @@ ggsave(file='./figures/5f-legend.png',plot=p.csd.data,dpi=300,bg = "transparent"
 ```
 
 ``` r
-## Plot simulated experiments: 
+## Plot simulated experiments:
+
+## This assumes you have run the python simulation to get the tmp potency files
+
 sim.pot <- read.csv("./csdModel/tmp_pot.csv")
 sim.pot[,"Posture"] <- sim.pot$Response
 
@@ -2892,52 +1837,46 @@ summary(pot.model)
 ```
 
 ```
-## Generalized linear mixed model fit by maximum likelihood (Laplace Approximation) ['glmerMod']
+## Generalized linear mixed model fit by maximum likelihood (Laplace Approximation) [
+## glmerMod]
 ##  Family: binomial  ( logit )
 ## Formula: Posture ~ AvgPotency * Block + (1 | Bird)
 ##    Data: sim.pot
 ## 
 ##      AIC      BIC   logLik deviance df.resid 
-##   1252.0   1276.6   -621.0   1242.0      995 
+##    888.6    913.2   -439.3    878.6      995 
 ## 
 ## Scaled residuals: 
 ##     Min      1Q  Median      3Q     Max 
-## -2.0316 -0.8286 -0.4892  0.9753  3.2536 
+## -3.1274 -0.5533 -0.2401  0.3913  4.9088 
 ## 
 ## Random effects:
 ##  Groups Name        Variance Std.Dev.
-##  Bird   (Intercept) 0.02891  0.17    
+##  Bird   (Intercept) 0.02954  0.1719  
 ## Number of obs: 1000, groups:  Bird, 10
 ## 
 ## Fixed effects:
-##                  Estimate Std. Error z value Pr(>|z|)    
-## (Intercept)       0.16603    0.38705   0.429    0.668    
-## AvgPotency       -0.17185    0.88797  -0.194    0.847    
-## Block            -0.50186    0.08115  -6.185 6.23e-10 ***
-## AvgPotency:Block  0.94332    0.18411   5.124 3.00e-07 ***
+##                   Estimate Std. Error z value Pr(>|z|)    
+## (Intercept)       0.007609   0.243119   0.031    0.975    
+## AvgPotency       -0.132028   0.663864  -0.199    0.842    
+## Block            -0.687831   0.068185 -10.088  < 2e-16 ***
+## AvgPotency:Block  1.353792   0.166080   8.151  3.6e-16 ***
 ## ---
 ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 ## 
 ## Correlation of Fixed Effects:
 ##             (Intr) AvgPtn Block 
-## AvgPotency  -0.940              
-## Block       -0.803  0.765       
-## AvgPtncy:Bl  0.774 -0.816 -0.954
+## AvgPotency  -0.809              
+## Block       -0.726  0.596       
+## AvgPtncy:Bl  0.668 -0.767 -0.874
 ```
 
 ``` r
 sim.pot$Fits <- fitted(pot.model)
 
-ggplot(data=sim.pot,aes(x=Block,y=Posture,group=Song)) + 
-  geom_line()
-```
-
-![plot of chunk unnamed-chunk-1](figure/unnamed-chunk-1-33.png)
-
-``` r
 p.csd.pot <- interact_plot(pot.model,
-                            modxvals=c(0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9),
-                            pred=Block,modx=AvgPotency,colors=gray(1 - c(0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9))) + 
+                            modxvals=modx_vals,
+                            pred=Block,modx=AvgPotency,colors=gray(1 - modx_vals)) + 
   theme_classic() + 
   theme(legend.position = "none",
         rect=element_rect(fill="transparent"),
@@ -2950,7 +1889,7 @@ p.csd.pot <- interact_plot(pot.model,
 p.csd.pot
 ```
 
-![plot of chunk unnamed-chunk-1](figure/unnamed-chunk-1-34.png)
+![plot of chunk unnamed-chunk-1](figure/unnamed-chunk-1-33.png)
 
 ``` r
 ggsave(file='./figures/5d.png',plot=p.csd.pot,dpi=300,bg = "transparent")
@@ -2967,41 +1906,51 @@ sim.thresh[,"Posture"] <- sim.thresh$Response
 thresh.model <-glmer(formula = Posture ~ AvgPotency * Block +
                     (1|Bird), data = sim.thresh, 
                   family=binomial)
+```
+
+```
+## boundary (singular) fit: see help('isSingular')
+```
+
+``` r
 summary(thresh.model)
 ```
 
 ```
-## Generalized linear mixed model fit by maximum likelihood (Laplace Approximation) ['glmerMod']
+## Generalized linear mixed model fit by maximum likelihood (Laplace Approximation) [
+## glmerMod]
 ##  Family: binomial  ( logit )
 ## Formula: Posture ~ AvgPotency * Block + (1 | Bird)
 ##    Data: sim.thresh
 ## 
 ##      AIC      BIC   logLik deviance df.resid 
-##   1185.8   1210.3   -587.9   1175.8      995 
+##    452.5    477.0   -221.2    442.5      995 
 ## 
 ## Scaled residuals: 
 ##     Min      1Q  Median      3Q     Max 
-## -2.4633 -0.7972  0.3579  0.7738  2.5236 
+## -4.3994 -0.1549  0.0031  0.1654  5.0411 
 ## 
 ## Random effects:
 ##  Groups Name        Variance Std.Dev.
-##  Bird   (Intercept) 0.008664 0.09308 
+##  Bird   (Intercept) 0        0       
 ## Number of obs: 1000, groups:  Bird, 10
 ## 
 ## Fixed effects:
 ##                  Estimate Std. Error z value Pr(>|z|)    
-## (Intercept)      -1.28245    0.37427  -3.427 0.000611 ***
-## AvgPotency        4.47949    0.72890   6.146 7.97e-10 ***
-## Block            -0.20755    0.07548  -2.750 0.005968 ** 
-## AvgPotency:Block -0.01001    0.13835  -0.072 0.942320    
+## (Intercept)       -0.4909     0.5520  -0.889    0.374    
+## AvgPotency        13.5151     1.5895   8.503   <2e-16 ***
+## Block             -1.4609     0.1589  -9.194   <2e-16 ***
+## AvgPotency:Block   0.1161     0.2433   0.477    0.633    
 ## ---
 ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 ## 
 ## Correlation of Fixed Effects:
 ##             (Intr) AvgPtn Block 
-## AvgPotency  -0.929              
-## Block       -0.821  0.753       
-## AvgPtncy:Bl  0.801 -0.842 -0.940
+## AvgPotency  -0.801              
+## Block       -0.625  0.178       
+## AvgPtncy:Bl  0.843 -0.726 -0.771
+## optimizer (Nelder_Mead) convergence code: 0 (OK)
+## boundary (singular) fit: see help('isSingular')
 ```
 
 ``` r
@@ -3011,12 +1960,12 @@ ggplot(data=sim.thresh,aes(x=Block,y=Fits,group=Song)) +
   geom_line()
 ```
 
-![plot of chunk unnamed-chunk-1](figure/unnamed-chunk-1-35.png)
+![plot of chunk unnamed-chunk-1](figure/unnamed-chunk-1-34.png)
 
 ``` r
 p.csd.thresh <- interact_plot(thresh.model,
-                           modxvals=c(0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9),
-                           pred=Block,modx=AvgPotency,colors=gray(1 - c(0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9))) + 
+                           modxvals=modx_vals,
+                           pred=Block,modx=AvgPotency,colors=gray(1 - modx_vals)) + 
   theme_classic() + 
   theme(legend.position = "none",
         rect=element_rect(fill="transparent"),
@@ -3029,7 +1978,7 @@ p.csd.thresh <- interact_plot(thresh.model,
 p.csd.thresh
 ```
 
-![plot of chunk unnamed-chunk-1](figure/unnamed-chunk-1-36.png)
+![plot of chunk unnamed-chunk-1](figure/unnamed-chunk-1-35.png)
 
 ``` r
 ggsave(file='./figures/5e.png',plot=p.csd.thresh,dpi=300,bg = "transparent")
@@ -3047,9 +1996,11 @@ summary(B1scoreModel)
 ```
 
 ```
-## Generalized linear mixed model fit by maximum likelihood (Laplace Approximation) ['glmerMod']
+## Generalized linear mixed model fit by maximum likelihood (Laplace Approximation) [
+## glmerMod]
 ##  Family: binomial  ( logit )
-## Formula: Posture ~ B1Potency * Block + (1 | Bird) + (1 | Aviary) + (1 |      SongSet)
+## Formula: Posture ~ B1Potency * Block + (1 | Bird) + (1 | Aviary) + (1 |  
+##     SongSet)
 ##    Data: csd_binary
 ## 
 ##      AIC      BIC   logLik deviance df.resid 
@@ -3083,10 +2034,10 @@ summary(B1scoreModel)
 ```
 
 ``` r
-interact_plot(B1scoreModel,modxvals=c(0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9),pred=Block,modx=B1Potency)
+interact_plot(B1scoreModel,modxvals=modx_vals,pred=Block,modx=B1Potency)
 ```
 
-![plot of chunk unnamed-chunk-1](figure/unnamed-chunk-1-37.png)
+![plot of chunk unnamed-chunk-1](figure/unnamed-chunk-1-36.png)
 
 ``` r
 ## An overall good model, to see what explains Posture generally
@@ -3104,9 +2055,11 @@ summary(goodModel)
 ```
 
 ```
-## Generalized linear mixed model fit by maximum likelihood (Laplace Approximation) ['glmerMod']
+## Generalized linear mixed model fit by maximum likelihood (Laplace Approximation) [
+## glmerMod]
 ##  Family: binomial  ( logit )
-## Formula: Posture ~ AvgPotency * BlockResponseRate + (1 | Bird) + (1 |      Aviary) + (1 | SongSet)
+## Formula: Posture ~ AvgPotency * BlockResponseRate + (1 | Bird) + (1 |  
+##     Aviary) + (1 | SongSet)
 ##    Data: csd_binary
 ## 
 ##      AIC      BIC   logLik deviance df.resid 
@@ -3142,10 +2095,10 @@ summary(goodModel)
 ```
 
 ``` r
-interact_plot(goodModel,modxvals=c(0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9),pred=BlockResponseRate,modx=AvgPotency)
+interact_plot(goodModel,modxvals=modx_vals,pred=BlockResponseRate,modx=AvgPotency)
 ```
 
-![plot of chunk unnamed-chunk-1](figure/unnamed-chunk-1-38.png)
+![plot of chunk unnamed-chunk-1](figure/unnamed-chunk-1-37.png)
 
 ``` r
 ### PRELIMINARY WHISTLE COMPARISON ####
@@ -3184,7 +2137,8 @@ summary(whistleModel)
 ```
 
 ```
-## Linear mixed model fit by REML. t-tests use Satterthwaite's method ['lmerModLmerTest']
+## Linear mixed model fit by REML. t-tests use Satterthwaite's method [lmerModLmerTest
+## ]
 ## Formula: Latency ~ Whistle + (1 | Bird) + (1 | Song) + (1 | Block)
 ##    Data: whistleLat_data_
 ## 
@@ -3223,7 +2177,8 @@ summary(whistleDurModel)
 ```
 
 ```
-## Linear mixed model fit by REML. t-tests use Satterthwaite's method ['lmerModLmerTest']
+## Linear mixed model fit by REML. t-tests use Satterthwaite's method [lmerModLmerTest
+## ]
 ## Formula: Duration ~ Whistle + (1 | Bird) + (1 | Song) + (1 | Block)
 ##    Data: whistleLat_data_
 ## 
@@ -3254,29 +2209,25 @@ summary(whistleDurModel)
 ```
 
 ``` r
-mean(whistleLat_data)
+mean(whistleLat_data$Latency,na.rm=TRUE)
 ```
 
 ```
-## Warning in mean.default(whistleLat_data): argument is not numeric or logical: returning NA
-```
-
-```
-## [1] NA
+## [1] 0.4835556
 ```
 
 ``` r
 plot(fitted(whistleDurModel),resid(whistleDurModel))
 ```
 
-![plot of chunk unnamed-chunk-1](figure/unnamed-chunk-1-39.png)
+![plot of chunk unnamed-chunk-1](figure/unnamed-chunk-1-38.png)
 
 ``` r
 qqnorm(resid(whistleDurModel))
 qqline(resid(whistleDurModel))
 ```
 
-![plot of chunk unnamed-chunk-1](figure/unnamed-chunk-1-40.png)
+![plot of chunk unnamed-chunk-1](figure/unnamed-chunk-1-39.png)
 
 ``` r
 ### Supplemental Figures! 
@@ -3291,7 +2242,8 @@ df_summary <- csd_binary.clean %>%
 ```
 
 ```
-## `summarise()` has grouped output by 'Aviary', 'Bird'. You can override using the `.groups` argument.
+## `summarise()` has grouped output by 'Aviary', 'Bird'. You can override using the
+## `.groups` argument.
 ```
 
 ``` r
@@ -3309,20 +2261,21 @@ csd_binary.ranks
 
 ```
 ## # A tibble: 5,175 × 10
-## # Groups:   BirdID [45]
-##    Posture  Song SongID BirdID  Bird Block Aviary BlockResponsivity GroupResponsivity GroupsRank
-##      <dbl> <int> <chr>  <chr>  <int> <int>  <int>             <dbl>             <dbl>      <int>
-##  1       1     0 BDY    P1         0     0      0               0.5             0.795          1
-##  2       1     1 BOD    P1         0     0      0               0.5             0.795          1
-##  3       1     3 LB     P1         0     0      0               0.5             0.795          1
-##  4       0     9 DMG    P1         0     0      0               0.5             0.795          1
-##  5       0    10 BDY-   P1         0     0      0               0.5             0.795          1
-##  6       0    12 LB-    P1         0     0      0               0.5             0.795          1
-##  7       1     1 BOD    P1         0     1      0               0.5             0.795          1
-##  8       1     9 DMG    P1         0     1      0               0.5             0.795          1
-##  9       0    10 BDY-   P1         0     1      0               0.5             0.795          1
-## 10       0    12 LB-    P1         0     1      0               0.5             0.795          1
-## # ℹ 5,165 more rows
+## # Groups:   Bird [53]
+##    Posture  Song SongID BirdID  Bird Block Aviary BlockResponsivity
+##      <dbl> <int> <chr>  <chr>  <int> <int>  <int>             <dbl>
+##  1       1     0 BDY    P1         0     0      0               0.5
+##  2       1     1 BOD    P1         0     0      0               0.5
+##  3       1     3 LB     P1         0     0      0               0.5
+##  4       0     9 DMG    P1         0     0      0               0.5
+##  5       0    10 BDY-   P1         0     0      0               0.5
+##  6       0    12 LB-    P1         0     0      0               0.5
+##  7       1     1 BOD    P1         0     1      0               0.5
+##  8       1     9 DMG    P1         0     1      0               0.5
+##  9       0    10 BDY-   P1         0     1      0               0.5
+## 10       0    12 LB-    P1         0     1      0               0.5
+## #  5,165 more rows
+## #  2 more variables: GroupResponsivity <dbl>, GroupsRank <int>
 ```
 
 ``` r
@@ -3333,7 +2286,8 @@ df_summary <- csd_binary.ranks %>%
 ```
 
 ```
-## `summarise()` has grouped output by 'Aviary'. You can override using the `.groups` argument.
+## `summarise()` has grouped output by 'Aviary'. You can override using the `.groups`
+## argument.
 ```
 
 ``` r
@@ -3344,21 +2298,22 @@ csd_binary.ranks
 
 ```
 ## # A tibble: 5,175 × 12
-## # Groups:   BirdID [45]
-##    Posture  Song SongID BirdID  Bird Block Aviary BlockResponsivity GroupResponsivity GroupsRank
-##      <dbl> <int> <chr>  <chr>  <int> <int>  <int>             <dbl>             <dbl>      <int>
-##  1       1     0 BDY    P1         0     0      0               0.5             0.795          1
-##  2       1     1 BOD    P1         0     0      0               0.5             0.795          1
-##  3       1     3 LB     P1         0     0      0               0.5             0.795          1
-##  4       0     9 DMG    P1         0     0      0               0.5             0.795          1
-##  5       0    10 BDY-   P1         0     0      0               0.5             0.795          1
-##  6       0    12 LB-    P1         0     0      0               0.5             0.795          1
-##  7       1     1 BOD    P1         0     1      0               0.5             0.795          1
-##  8       1     9 DMG    P1         0     1      0               0.5             0.795          1
-##  9       0    10 BDY-   P1         0     1      0               0.5             0.795          1
-## 10       0    12 LB-    P1         0     1      0               0.5             0.795          1
-## # ℹ 5,165 more rows
-## # ℹ 2 more variables: BirdResponsivity <dbl>, RankInGroup <int>
+## # Groups:   Bird [53]
+##    Posture  Song SongID BirdID  Bird Block Aviary BlockResponsivity
+##      <dbl> <int> <chr>  <chr>  <int> <int>  <int>             <dbl>
+##  1       1     0 BDY    P1         0     0      0               0.5
+##  2       1     1 BOD    P1         0     0      0               0.5
+##  3       1     3 LB     P1         0     0      0               0.5
+##  4       0     9 DMG    P1         0     0      0               0.5
+##  5       0    10 BDY-   P1         0     0      0               0.5
+##  6       0    12 LB-    P1         0     0      0               0.5
+##  7       1     1 BOD    P1         0     1      0               0.5
+##  8       1     9 DMG    P1         0     1      0               0.5
+##  9       0    10 BDY-   P1         0     1      0               0.5
+## 10       0    12 LB-    P1         0     1      0               0.5
+## #  5,165 more rows
+## #  4 more variables: GroupResponsivity <dbl>, GroupsRank <int>,
+## #   BirdResponsivity <dbl>, RankInGroup <int>
 ```
 
 ``` r
@@ -3382,7 +2337,7 @@ my_plot <- csd_binary.ranks %>%
 my_plot
 ```
 
-![plot of chunk unnamed-chunk-1](figure/unnamed-chunk-1-41.png)
+![plot of chunk unnamed-chunk-1](figure/unnamed-chunk-1-40.png)
 
 ``` r
 csd_binary.birdResponse <- csd_binary.ranks %>%
@@ -3391,7 +2346,8 @@ csd_binary.birdResponse <- csd_binary.ranks %>%
 ```
 
 ```
-## `summarise()` has grouped output by 'Bird'. You can override using the `.groups` argument.
+## `summarise()` has grouped output by 'Bird'. You can override using the `.groups`
+## argument.
 ```
 
 ``` r
@@ -3413,7 +2369,7 @@ csd_binary.birdResponse
 ##  8     1     0          0.5
 ##  9     1     1          1  
 ## 10     1     2          1  
-## # ℹ 462 more rows
+## #  462 more rows
 ```
 
 ``` r

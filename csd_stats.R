@@ -7,20 +7,23 @@ library('ggplot2')
 library('DHARMa')
 library('MuMIn')
 
+## To convert to markdown: knitr::spin('./csd_stats.R')
+## To convert markdown to pdf: For reasons I don't fully understand, 
+## first get rid of weird characters: ℹ
+## Then rmarkdown::render("csd_stats.md", output_format = "pdf_document")
+
 setwd("~/Documents/Scripts/PostureAnalysis")
 #setwd("~/Downloads")
 #csd_data <- read.csv("./full_df2.csv")
 csd_data.raw <- read.csv("./full_df3.csv")
 
-csd_data.raw$PostureSum <- 0
-aggregate(csd_data.raw$Posture,by=list(Category=csd_data.raw$BirdID),FUN=sum)
-
+bird_list.all <- aggregate(csd_data.raw$Posture,by=list(Category=csd_data.raw$Bird),FUN=sum)
+print(dim(bird_list.all))
 filtered_csd <- csd_data.raw %>%
-  group_by(BirdID) %>%
+  group_by(Bird) %>%
   filter(sum(Posture) > 5)
-aggregate(filtered_csd$Posture,by=list(Category=filtered_csd$BirdID),FUN=sum)
-
-
+bird_list.some <- aggregate(filtered_csd$Posture,by=list(Category=filtered_csd$Bird),FUN=sum)
+print(dim(bird_list.some))
 csd_data <- filtered_csd
 
 ## Check whether songs differ from random: 
@@ -36,12 +39,12 @@ song_means <- csd_data.set0 %>%
   group_by(SongID,Aviary) %>%
   summarize(mean_pot = mean(Posture),std_pot = sd(Posture),pres_count = length(Posture))
 
-print(song_means)
-csd_data.set0[csd_data.set0$Aviary == 1,]
+#print(song_means)
+#csd_data.set0[csd_data.set0$Aviary == 1,]
 
 ## Consistency of preference: 
 song_means.birds <- csd_data.set0 %>%
-  group_by(SongID,BirdID,Aviary) %>%
+  group_by(SongID,Bird,Aviary) %>%
   summarize(mean_pot = mean(Posture),std_pot = sd(Posture),pres_count = length(Posture))
 
 aviaries <- unique(song_means$Aviary)
@@ -49,25 +52,25 @@ aviaries <- unique(song_means$Aviary)
 corrs.aviary <- c()
 corrs.birds <- c()
 for (a in aviaries) {
-  birds <- unique(song_means.birds[song_means.birds$Aviary == a,]$BirdID)
+  birds <- unique(song_means.birds[song_means.birds$Aviary == a,]$Bird)
   song_means.sub <- song_means.birds[song_means.birds$Aviary == a,]
-  birds <- unique(song_means.sub$BirdID)
+  birds <- unique(song_means.sub$Bird)
   for (i in birds) {
     for (j in birds) {
       if (i == j) next
-      print(c(i,j))
-      res.cor <- cor.test(x=song_means.sub[song_means.sub$BirdID == i,]$mean_pot,
-                          y=song_means.sub[song_means.sub$BirdID == j,]$mean_pot,method='pearson')
-      print(res.cor$estimate)
+      #print(c(i,j))
+      res.cor <- cor.test(x=song_means.sub[song_means.sub$Bird == i,]$mean_pot,
+                          y=song_means.sub[song_means.sub$Bird == j,]$mean_pot,method='pearson')
+      #print(res.cor$estimate)
       corrs.birds <- c(corrs.birds,res.cor$estimate)
     }
   }
   for (b in aviaries) {
 
     if (a == b) next
-    print(c(a,b))
+    #print(c(a,b))
     res.cor <- cor.test(x=song_means[song_means$Aviary == a,]$mean_pot,y=song_means[song_means$Aviary == b,]$mean_pot,method='pearson')
-    print(res.cor$estimate)
+    #print(res.cor$estimate)
     corrs.aviary <- c(corrs.aviary,res.cor$estimate)
     }
   }
@@ -106,7 +109,9 @@ lat_data <- lat_data[lat_data$Latency > 0,]
 lat_data['LogLatency'] <- log(lat_data['Latency'])
 lat_data['SqrtLatency'] <- sqrt(lat_data['Latency'])
 plot(lat_data$Latency,lat_data$AvgPotency)
+print('Number of CSDs:')
 length(lat_data$Latency)
+print('Mean,Std Latency')
 mean(lat_data$Latency)
 sd(lat_data$Latency)
 resLat.aov <- aov(Latency ~ Bird, data = lat_data)
@@ -194,8 +199,11 @@ dur_data <- dur_data[complete.cases(dur_data),]
 dur_data <- dur_data[dur_data$Posture == 1,]
 dur_data <- dur_data[dur_data$Duration> 0,]
 
+print('Number of CSDs for duration')
 length(dur_data$Duration)
+print('Number of birds')
 length(unique(dur_data$Bird))
+print('Number of Aviaries')
 length(unique(dur_data$Aviary))
 mean(dur_data$Duration)
 sd(dur_data$Duration)
@@ -213,6 +221,7 @@ song_durations <- c(1.054833,
                     1.101667,
                     1.121792,
                     1.142313)
+print('mean,std of duration')
 mean(song_durations)
 sd(song_durations)
 
@@ -318,7 +327,9 @@ traj_data <- subset(csd_data,select=c("Posture","MaxVelocity","PeakHeight","AvgP
 traj_data <- traj_data[complete.cases(traj_data),]
 traj_data <- traj_data[traj_data$Posture == 1,]
 
+print('n CSD for trajectory:')
 length(traj_data[traj_data$Posture == 1,]$Posture)
+print('n birds for trajectory')
 length(unique(traj_data$Bird))
 plot(traj_data$MaxVelocity,traj_data$BVPotency)
 
@@ -349,6 +360,7 @@ birdview_data = csd_data[csd_data$Aviary < 2,]
 csd_counts <- table(csd_data$Posture)
 partial_prop <- csd_counts[3] / sum(csd_counts)
 full_prop <- csd_counts[2] / sum(csd_counts)
+print('Partial proportion, full proportion:')
 print(c(partial_prop,full_prop))
 
 ## This is the proportion for just our data, which was very careful with partials
@@ -357,8 +369,8 @@ n_playbacks <- length(birdview_data$Posture)
 n_csd <- length(which(birdview_data$Posture == 1))
 n_partials <- length(which(birdview_data$Posture == 2))
 
-print(c("proportion of full CSD:",n_csd / n_playbacks))
-print(c("proportion of partial CSDs:",n_partials / n_playbacks))
+print(c("proportion of full CSD (my experiments):",n_csd / n_playbacks))
+print(c("proportion of partial CSDs (my experiments):",n_partials / n_playbacks))
 
 
 ## Check whether latency is different for partials vs full postures
@@ -394,6 +406,7 @@ summary(partialModel.posture)
 
 ## Check potency of songs eliciting partial CSD: 
 
+print('Potency of songs eliciting non,full, and partial CSD')
 mean(birdview_data[birdview_data$Posture == 0,]$AvgPotency)
 mean(birdview_data[birdview_data$Posture == 1,]$AvgPotency)
 mean(birdview_data[birdview_data$Posture == 2,]$AvgPotency)
@@ -489,41 +502,49 @@ effs.intercept <- list()
 effs.song <- list()
 effs.block <- list()
 
-for(a in aviaries) {
-  csd_binary.aviary <- csd_binary.clean[csd_binary.clean$Aviary == a,]
-  songs <- unique(csd_binary.aviary$SongID)
-  songs.pairs <- t(combn(songs,2))
-  for (i in seq(1,length(songs.pairs) / 2)) {
-    song.A <- songs.pairs[i,1]
-    song.B <- songs.pairs[i,2]
-    csd.aviary.subset <- csd_binary.aviary %>% filter(SongID == song.A | SongID == song.B)
-    csd.model.pair <- glmer(formula = Posture ~ SongID + Block + (1|Bird),
-                             data = csd.aviary.subset, 
-                             family=binomial)
-    print('doing something...')
-      effs.intercept[l] <- fixef(csd.model.pair)[[1]]
-      effs.song[l] <- abs(fixef(csd.model.pair)[[2]])
-      effs.block[l] <- fixef(csd.model.pair)[[3]]
-      l <- l + 1
+### This was sort of a hairbrained idea to try to get the effect of song vs block
+## without dealing with the circular logic of "potency", by having a model with just 
+## two songs at a time (to get around the problem of having 10 categorical variables)
+## I think it has promise, but is ultimately unnecessary. 
+
+if (FALSE) {
+  for(a in aviaries) {
+    csd_binary.aviary <- csd_binary.clean[csd_binary.clean$Aviary == a,]
+    songs <- unique(csd_binary.aviary$SongID)
+    songs.pairs <- t(combn(songs,2))
+    for (i in seq(1,length(songs.pairs) / 2)) {
+      song.A <- songs.pairs[i,1]
+      song.B <- songs.pairs[i,2]
+      csd.aviary.subset <- csd_binary.aviary %>% filter(SongID == song.A | SongID == song.B)
+      csd.model.pair <- glmer(formula = Posture ~ SongID + Block + (1|Bird),
+                               data = csd.aviary.subset, 
+                               family=binomial)
+      #print('doing something...')
+        effs.intercept[l] <- fixef(csd.model.pair)[[1]]
+        effs.song[l] <- abs(fixef(csd.model.pair)[[2]])
+        effs.block[l] <- fixef(csd.model.pair)[[3]]
+        l <- l + 1
+    }
+    break
   }
-  break
+
+  effs.intercept <- unlist(effs.intercept,use.names=FALSE)
+  effs.song <- unlist(effs.song,use.names=FALSE)
+  effs.block <- unlist(effs.block,use.names=FALSE)
+  
+  m.intercept <- mean(effs.intercept)
+  m.song <- mean(effs.song)
+  m.block <- mean(effs.block)
+  
+  se.intercept <- sd(effs.intercept) / sqrt(length(effs.intercept))
+  se.song <- sd(effs.song) / sqrt(length(effs.intercept))
+  se.block <- sd(effs.block) / sqrt(length(effs.intercept))
+  
+  print('')
+  print(m.intercept);print(se.intercept)
+  print(m.song);print(se.song)
+  print(m.block);print(se.block)
 }
-effs.intercept <- unlist(effs.intercept,use.names=FALSE)
-effs.song <- unlist(effs.song,use.names=FALSE)
-effs.block <- unlist(effs.block,use.names=FALSE)
-
-m.intercept <- mean(effs.intercept)
-m.song <- mean(effs.song)
-m.block <- mean(effs.block)
-
-se.intercept <- sd(effs.intercept) / sqrt(length(effs.intercept))
-se.song <- sd(effs.song) / sqrt(length(effs.intercept))
-se.block <- sd(effs.block) / sqrt(length(effs.intercept))
-
-print(m.intercept);print(se.intercept)
-print(m.song);print(se.song)
-print(m.block);print(se.block)
-
 
 csd_binary.subset <- csd_binary.clean %>% filter(SongID == "BDY" | SongID == "2M")
 csd.model.clean <- glmer(formula = Posture ~ SongID + Block + (1|Bird),
@@ -557,9 +578,13 @@ scoreModel <-glmer(formula = Posture ~ AvgPotency * Block +
 
 
 summary(scoreModel)
+
+modx_vals= c(0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9)
+#modx_vals=c(0.1,0.25,0.5,0.75,0.9)
+
 p.csd.data <- interact_plot(scoreModel,
-                            modxvals=c(0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9),
-                            pred=Block,modx=AvgPotency,colors=gray(1 - c(0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9))) + 
+                            modxvals=modx_vals,
+                            pred=Block,modx=AvgPotency,colors=gray(1 - modx_vals)) + 
   theme_classic() + 
   theme(legend.position = "right",
         rect=element_rect(fill="transparent"),
@@ -572,7 +597,10 @@ p.csd.data <- interact_plot(scoreModel,
 p.csd.data
 ggsave(file='./figures/5f-legend.png',plot=p.csd.data,dpi=300,bg = "transparent")
 
-## Plot simulated experiments: 
+## Plot simulated experiments:
+
+## This assumes you have run the python simulation to get the tmp potency files
+
 sim.pot <- read.csv("./csdModel/tmp_pot.csv")
 sim.pot[,"Posture"] <- sim.pot$Response
 
@@ -580,15 +608,13 @@ pot.model <-glmer(formula = Posture ~ AvgPotency * Block +
                      (1|Bird), data = sim.pot, 
                    family=binomial)
 summary(pot.model)
+
+
 sim.pot$Fits <- fitted(pot.model)
 
-ggplot(data=sim.pot,aes(x=Block,y=Posture,group=Song)) + 
-  geom_line()
-
-
 p.csd.pot <- interact_plot(pot.model,
-                            modxvals=c(0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9),
-                            pred=Block,modx=AvgPotency,colors=gray(1 - c(0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9))) + 
+                            modxvals=modx_vals,
+                            pred=Block,modx=AvgPotency,colors=gray(1 - modx_vals)) + 
   theme_classic() + 
   theme(legend.position = "none",
         rect=element_rect(fill="transparent"),
@@ -616,8 +642,8 @@ ggplot(data=sim.thresh,aes(x=Block,y=Fits,group=Song)) +
 
 
 p.csd.thresh <- interact_plot(thresh.model,
-                           modxvals=c(0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9),
-                           pred=Block,modx=AvgPotency,colors=gray(1 - c(0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9))) + 
+                           modxvals=modx_vals,
+                           pred=Block,modx=AvgPotency,colors=gray(1 - modx_vals)) + 
   theme_classic() + 
   theme(legend.position = "none",
         rect=element_rect(fill="transparent"),
@@ -635,14 +661,14 @@ ggsave(file='./figures/5e.png',plot=p.csd.thresh,dpi=300,bg = "transparent")
 B1scoreModel <-glmer(formula = Posture ~ B1Potency * Block + 
                        (1|Bird) + (1|Aviary) + (1|SongSet), data = csd_binary, family=binomial)
 summary(B1scoreModel)
-interact_plot(B1scoreModel,modxvals=c(0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9),pred=Block,modx=B1Potency)
+interact_plot(B1scoreModel,modxvals=modx_vals,pred=Block,modx=B1Potency)
 
 ## An overall good model, to see what explains Posture generally
 goodModel <-glmer(formula = Posture ~ AvgPotency * BlockResponseRate +
                     (1|Bird) + (1|Aviary) + (1|SongSet), data = csd_binary, 
                   family=binomial)
 summary(goodModel)
-interact_plot(goodModel,modxvals=c(0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9),pred=BlockResponseRate,modx=AvgPotency)
+interact_plot(goodModel,modxvals=modx_vals,pred=BlockResponseRate,modx=AvgPotency)
 
 ### PRELIMINARY WHISTLE COMPARISON ####
 song_set <- c("BDY","LB","BDY-","LB-")
@@ -676,7 +702,7 @@ whistleDurModel <- lmer(formula = Duration ~ Whistle +
 
 summary(whistleDurModel)
 
-mean(whistleLat_data)
+mean(whistleLat_data$Latency,na.rm=TRUE)
 plot(fitted(whistleDurModel),resid(whistleDurModel))
 qqnorm(resid(whistleDurModel))
 qqline(resid(whistleDurModel))
