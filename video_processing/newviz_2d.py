@@ -3,8 +3,6 @@
 ## Code for visualizing 2d keypoints over videos
 # I swear I have already written this, but I can't find it. So here we are. 
 
-## For questions, contact Ammon (perkes.ammon@gmail.com)
-
 ## Load in packages
 import numpy as np
 import cv2
